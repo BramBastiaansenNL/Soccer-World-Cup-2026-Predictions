@@ -1,22 +1,26 @@
 {
   "version": 2,
   "cleanUrls": true,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
     },
     {
-      "source": "/predictions",
-      "destination": "/index.html"
+      "src": "/predictions",
+      "dest": "/index.html"
     },
     {
-      "source": "/schedule",
-      "destination": "/index.html"
+      "src": "/schedule",
+      "dest": "/index.html"
     },
     {
-      "source": "/standings",
-      "destination": "/index.html"
+      "src": "/standings",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
     }
   ],
   "headers": [
