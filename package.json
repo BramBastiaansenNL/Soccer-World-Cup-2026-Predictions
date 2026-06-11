@@ -1,0 +1,13 @@
+{
+  "name": "world-cup-fame-picks",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Teams-friendly World Cup prediction platform for colleagues.",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

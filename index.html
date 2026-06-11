@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>World Cup Fame Picks</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Company World Cup challenge</p>
+          <h1>World Cup Fame Picks</h1>
+          <p class="hero-copy">Pick the winners once, lock in your call, and climb the internal fame board as results come in.</p>
+        </div>
+        <div class="hero-panel">
+          <span class="stat-label">Top prize</span>
+          <strong>100 pts</strong>
+          <span>Correct champion pick</span>
+        </div>
+      </section>
+
+      <section id="setupNotice" class="notice hidden"></section>
+
+      <div class="layout">
+        <section class="prediction-column">
+          <form id="predictionForm" class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Final submission</p>
+                <h2>Make your picks</h2>
+              </div>
+              <span id="submissionStatus" class="status-pill">Open</span>
+            </div>
+
+            <label class="name-field">
+              <span>Your display name</span>
+              <input id="displayName" name="displayName" maxlength="80" autocomplete="name" placeholder="e.g. Bea Jansen" required>
+            </label>
+
+            <div id="events"></div>
+
+            <div class="submit-bar">
+              <p>Picks are locked after submission. One entry per display name.</p>
+              <button type="submit" class="primary-button">Submit picks</button>
+            </div>
+          </form>
+
+          <section id="myPicks" class="panel hidden">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Confirmation</p>
+                <h2>Your picks are locked</h2>
+              </div>
+            </div>
+            <div id="myPicksList"></div>
+          </section>
+        </section>
+
+        <aside class="side-column">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Fame board</p>
+                <h2>Leaderboard</h2>
+              </div>
+            </div>
+            <div id="leaderboard" class="leaderboard"></div>
+          </section>
+
+          <section class="panel">
+            <details>
+              <summary>Admin</summary>
+              <div class="admin-grid">
+                <input id="adminPassphrase" type="password" placeholder="Admin passphrase">
+                <select id="adminEvent"></select>
+                <select id="adminResult"></select>
+                <button id="saveResult" type="button">Save result</button>
+                <button id="clearResult" type="button">Clear result</button>
+                <button id="toggleLock" type="button">Toggle lock</button>
+                <input id="deleteName" placeholder="Name to delete">
+                <button id="deleteSubmission" type="button">Delete submission</button>
+                <button id="exportCsv" type="button">Export CSV</button>
+                <hr>
+                <input id="fixtureId" placeholder="Fixture id, e.g. match-002">
+                <input id="fixtureTitle" placeholder="Title, e.g. France vs Brazil">
+                <input id="fixtureStage" placeholder="Stage, e.g. Group stage">
+                <input id="fixtureOptions" placeholder="Options separated by |, e.g. France|Draw|Brazil">
+                <select id="fixtureType">
+                  <option value="match_winner">Match winner</option>
+                  <option value="champion">Champion</option>
+                  <option value="finalist">Finalist</option>
+                  <option value="semi_finalist">Semi-finalist</option>
+                </select>
+                <input id="fixturePoints" type="number" min="1" value="8" placeholder="Points">
+                <button id="saveFixture" type="button">Save fixture</button>
+              </div>
+              <p id="adminMessage" class="small-message"></p>
+            </details>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <template id="eventTemplate">
+      <article class="event-card">
+        <div class="event-header">
+          <div>
+            <p class="stage"></p>
+            <h3></h3>
+            <p class="description"></p>
+          </div>
+          <span class="points"></span>
+        </div>
+        <div class="options"></div>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
