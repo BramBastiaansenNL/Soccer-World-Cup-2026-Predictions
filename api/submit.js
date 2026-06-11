@@ -66,9 +66,17 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    await supabase("predictions?on_conflict=submission_id,event_id", {
+    const submittedEventIds = predictionRows.map((row) => row.event_id);
+    const existingPredictions = await supabase(`predictions?submission_id=eq.${encodeURIComponent(submission.id)}&event_id=in.(${submittedEventIds.join(",")})&select=event_id,selected_label`);
+    if (existingPredictions.length) {
+      const names = existingPredictions.map((prediction) => prediction.event_id).join(", ");
+      return json(res, 409, {
+        error: `You already saved a prediction for ${names}. Saved predictions cannot be changed.`
+      });
+    }
+
+    await supabase("predictions", {
       method: "POST",
-      headers: { Prefer: "resolution=merge-duplicates" },
       body: JSON.stringify(predictionRows.map((row) => ({ ...row, submission_id: submission.id, points_awarded: 0 })))
     });
 

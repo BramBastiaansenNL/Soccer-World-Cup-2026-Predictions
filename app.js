@@ -38,6 +38,7 @@ const demoState = {
 const state = {
   data: demoState,
   picks: {},
+  savedPicks: {},
   activeName: localStorage.getItem("activeName") || "",
   apiReady: true
 };
@@ -170,11 +171,10 @@ function renderEvents() {
   els.events.innerHTML = "";
   const template = document.querySelector("#eventTemplate");
   const activeSubmission = getActiveSubmission();
+  rebuildSavedPicks(activeSubmission);
 
   for (const event of [...state.data.events].sort(byImportance)) {
-    const savedPrediction = activeSubmission
-      ? state.data.predictions.find((prediction) => prediction.submissionId === activeSubmission.id && prediction.eventId === event.id)
-      : null;
+    const savedPrediction = state.savedPicks[event.id] || null;
     if (savedPrediction && !state.picks[event.id]) state.picks[event.id] = savedPrediction.selectedOptionId;
 
     const node = template.content.firstElementChild.cloneNode(true);
@@ -201,11 +201,19 @@ function renderEvents() {
       node.append(result);
     }
 
+    if (savedPrediction) {
+      const saved = document.createElement("p");
+      saved.className = "saved-message";
+      saved.textContent = `Your saved pick: ${savedPrediction.selectedLabel}. Saved picks cannot be changed.`;
+      node.append(saved);
+    }
+
     els.events.append(node);
   }
 }
 
 function renderRadioOptions(container, event) {
+  const hasSavedPick = Boolean(state.savedPicks[event.id]);
   for (const option of event.options || []) {
       const label = document.createElement("label");
       label.className = "option";
@@ -213,7 +221,7 @@ function renderRadioOptions(container, event) {
       input.type = "radio";
       input.name = event.id;
       input.value = option.optionId;
-      input.disabled = event.locked;
+      input.disabled = event.locked || hasSavedPick;
       input.checked = state.picks[event.id] === option.optionId;
       input.addEventListener("change", () => {
         state.picks[event.id] = option.optionId;
@@ -227,11 +235,12 @@ function renderRadioOptions(container, event) {
 }
 
 function renderDropdownOption(container, event) {
+  const hasSavedPick = Boolean(state.savedPicks[event.id]);
   const wrap = document.createElement("label");
   wrap.className = "pick-select";
   const select = document.createElement("select");
   select.name = event.id;
-  select.disabled = event.locked;
+  select.disabled = event.locked || hasSavedPick;
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -496,6 +505,16 @@ function getActiveSubmission() {
   return state.data.submissions.find((item) => item.normalizedName === normalized) || null;
 }
 
+function rebuildSavedPicks(submission) {
+  state.savedPicks = {};
+  if (!submission) return;
+  const saved = state.data.predictions.filter((prediction) => prediction.submissionId === submission.id);
+  for (const prediction of saved) {
+    state.savedPicks[prediction.eventId] = prediction;
+    state.picks[prediction.eventId] = prediction.selectedOptionId;
+  }
+}
+
 function hydratePicksForName(displayName) {
   const normalized = normalizeName(displayName);
   const submission = state.data.submissions.find((item) => item.normalizedName === normalized);
@@ -505,9 +524,16 @@ function hydratePicksForName(displayName) {
   localStorage.setItem("activeName", submission.displayName);
   const saved = state.data.predictions.filter((prediction) => prediction.submissionId === submission.id);
   for (const prediction of saved) {
+    state.savedPicks[prediction.eventId] = prediction;
     state.picks[prediction.eventId] = prediction.selectedOptionId;
   }
   return submission;
+}
+
+function getNewPicksOnly() {
+  return Object.fromEntries(
+    Object.entries(state.picks).filter(([eventId]) => !state.savedPicks[eventId])
+  );
 }
 
 function escapeHtml(value) {
@@ -538,9 +564,15 @@ els.predictionForm.addEventListener("submit", async (event) => {
   }
 
   try {
+    const picksToSubmit = getNewPicksOnly();
+    if (!Object.keys(picksToSubmit).length) {
+      alert("No new predictions to save. Existing saved picks cannot be changed.");
+      return;
+    }
+
     const result = await api("/api/submit", {
       method: "POST",
-      body: JSON.stringify({ displayName, picks: state.picks })
+      body: JSON.stringify({ displayName, picks: picksToSubmit })
     });
     localStorage.setItem("activeName", result.displayName);
     state.activeName = result.displayName;
@@ -551,6 +583,12 @@ els.predictionForm.addEventListener("submit", async (event) => {
   }
 });
 
+function tabFromLocation() {
+  const pathTab = location.pathname.replace(/^\/+/, "") || "";
+  const hashTab = location.hash.replace("#", "");
+  return pathTab || hashTab || "predictions";
+}
+
 function activateTab(tab) {
   const target = validTabs.includes(tab) ? tab : "predictions";
   tabButtons.forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
@@ -560,13 +598,15 @@ function activateTab(tab) {
 }
 
 tabButtons.forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
     activateTab(button.dataset.tab);
+    history.pushState({}, "", button.getAttribute("href"));
   });
 });
 
-window.addEventListener("hashchange", () => {
-  activateTab(location.hash.replace("#", ""));
+window.addEventListener("popstate", () => {
+  activateTab(tabFromLocation());
 });
 
 els.adminEvent.addEventListener("change", updateAdminResultOptions);
@@ -657,5 +697,5 @@ document.querySelector("#exportCsv").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-activateTab(location.hash.replace("#", ""));
+activateTab(tabFromLocation());
 loadState();

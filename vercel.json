@@ -5,6 +5,18 @@
     {
       "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/predictions",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/schedule",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/standings",
+      "destination": "/index.html"
     }
   ],
   "headers": [
