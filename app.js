@@ -179,6 +179,7 @@ function renderEvents() {
 
     const node = template.content.firstElementChild.cloneNode(true);
     node.classList.toggle("featured", event.type === "champion");
+    node.classList.toggle("played", Boolean(event.result));
     node.querySelector(".stage").textContent = event.stage || "Tournament";
     node.querySelector("h3").textContent = event.title;
     node.querySelector(".description").textContent = event.description || "";
@@ -326,6 +327,7 @@ function renderSchedule() {
     const teams = getMatchTeams(match);
     const row = document.createElement("article");
     row.className = "schedule-row";
+    row.classList.toggle("played", Boolean(match.result));
     row.innerHTML = `
       <div>
         <p class="stage">${escapeHtml(match.stage || "Match")}</p>
@@ -334,8 +336,8 @@ function renderSchedule() {
       </div>
       <div class="schedule-status">
         <span class="points">${match.points} pts</span>
-        <span class="${match.locked ? "locked" : "open"}">${match.locked ? "Locked" : "Open"}</span>
-        <span>${match.result ? `Result: ${escapeHtml(match.result.winningLabel)}` : teams.join(" / ")}</span>
+        <span class="${match.result ? "played-status" : match.locked ? "locked" : "open"}">${match.result ? "Played" : match.locked ? "Locked" : "Open"}</span>
+        <span class="schedule-result">${match.result ? `Result: ${escapeHtml(match.result.winningLabel)}` : teams.join(" / ")}</span>
       </div>
     `;
     els.scheduleList.append(row);

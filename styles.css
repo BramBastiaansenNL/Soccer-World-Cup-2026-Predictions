@@ -243,6 +243,15 @@ h3 {
   background: #f0fbf8;
 }
 
+.event-card.played {
+  background: #f7f8fb;
+}
+
+.event-card.played h3 {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
 .event-header {
   display: flex;
   justify-content: space-between;
@@ -501,6 +510,29 @@ details summary {
 .locked {
   background: #fee4e2;
   color: var(--danger);
+}
+
+.played-status {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef5f6;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.schedule-row.played {
+  background: #f7f8fb;
+}
+
+.schedule-row.played h3 {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.schedule-row.played .schedule-result {
+  font-weight: 900;
+  color: var(--ink);
 }
 
 .standing-group {
