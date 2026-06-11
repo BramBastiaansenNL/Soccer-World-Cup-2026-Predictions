@@ -584,28 +584,39 @@ els.predictionForm.addEventListener("submit", async (event) => {
 });
 
 function tabFromLocation() {
-  const pathTab = location.pathname.replace(/^\/+/, "") || "";
   const hashTab = location.hash.replace("#", "");
-  return pathTab || hashTab || "predictions";
+  return hashTab || "predictions";
 }
 
-function activateTab(tab) {
+function activateTab(tab, options = {}) {
   const target = validTabs.includes(tab) ? tab : "predictions";
-  tabButtons.forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
+  tabButtons.forEach((item) => {
+    const active = item.dataset.tab === target;
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  });
   for (const [key, panel] of Object.entries(tabPanels)) {
     panel.classList.toggle("active", key === target);
+  }
+  if (options.scroll) {
+    tabPanels[target].scrollIntoView({ behavior: "smooth", block: "start" });
+    tabPanels[target].focus({ preventScroll: true });
   }
 }
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", (event) => {
     event.preventDefault();
-    activateTab(button.dataset.tab);
-    history.pushState({}, "", button.getAttribute("href"));
+    const target = button.dataset.tab;
+    if (location.hash !== `#${target}`) {
+      history.pushState({}, "", `#${target}`);
+    }
+    activateTab(target, { scroll: true });
   });
 });
 
-window.addEventListener("popstate", () => {
+window.addEventListener("hashchange", () => {
   activateTab(tabFromLocation());
 });
 
