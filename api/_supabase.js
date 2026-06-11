@@ -42,7 +42,11 @@ async function supabase(path, options = {}) {
     throw new Error("Supabase is not configured.");
   }
 
-  const url = `${SUPABASE_URL.replace(/\/$/, "")}/rest/v1/${path}`;
+  const baseUrl = SUPABASE_URL
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/rest\/v1$/i, "");
+  const url = `${baseUrl}/rest/v1/${path}`;
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -54,7 +58,15 @@ async function supabase(path, options = {}) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    const error = new Error("Supabase returned a non-JSON response. Check that SUPABASE_URL is the project URL, for example https://your-project-ref.supabase.co.");
+    error.status = response.status;
+    error.details = { preview: text.slice(0, 120) };
+    throw error;
+  }
 
   if (!response.ok) {
     const message = data?.message || data?.hint || response.statusText;
