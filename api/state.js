@@ -1,4 +1,7 @@
 const { handleError, json, requireConfig, supabase } = require("./_supabase");
+const { getDefaultEvents, getDefaultMatchIds, getDefaultOptions, getDefaultTeams } = require("./_defaults");
+
+let defaultsChecked = false;
 
 function rankLeaderboard(submissions, predictions) {
   const bySubmission = new Map();
@@ -35,6 +38,8 @@ module.exports = async function handler(req, res) {
   if (!requireConfig(res)) return;
 
   try {
+    await ensureDefaultData();
+
     const [events, options, results, submissions, predictions] = await Promise.all([
       supabase("events?select=*&order=display_order.asc"),
       supabase("event_options?select=*&order=sort_order.asc"),
@@ -96,3 +101,44 @@ module.exports = async function handler(req, res) {
     handleError(res, error);
   }
 };
+
+async function ensureDefaultData() {
+  if (defaultsChecked || process.env.AUTO_SEED_DEFAULTS === "false") return;
+
+  const existingEvents = await supabase("events?select=id,type");
+  const hasEnoughMatches = existingEvents.filter((event) => event.type === "match_winner").length >= 72;
+  const hasChampion = existingEvents.some((event) => event.id === "champion");
+  if (hasEnoughMatches && hasChampion) {
+    defaultsChecked = true;
+    return;
+  }
+
+  const defaultTeams = getDefaultTeams();
+  const defaultEvents = getDefaultEvents();
+  const defaultOptions = getDefaultOptions();
+  const defaultMatchIds = getDefaultMatchIds();
+
+  await supabase("teams", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify(defaultTeams)
+  });
+
+  await supabase("events", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify(defaultEvents)
+  });
+
+  await supabase(`event_options?event_id=in.(${defaultMatchIds.join(",")})`, {
+    method: "DELETE"
+  });
+
+  await supabase("event_options", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify(defaultOptions)
+  });
+
+  defaultsChecked = true;
+}
