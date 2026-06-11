@@ -72,3 +72,11 @@ drop policy if exists "server only event_options" on public.event_options;
 drop policy if exists "server only submissions" on public.submissions;
 drop policy if exists "server only predictions" on public.predictions;
 drop policy if exists "server only results" on public.results;
+
+grant usage on schema public to service_role;
+grant select, insert, update, delete on public.teams to service_role;
+grant select, insert, update, delete on public.events to service_role;
+grant select, insert, update, delete on public.event_options to service_role;
+grant select, insert, update, delete on public.submissions to service_role;
+grant select, insert, update, delete on public.predictions to service_role;
+grant select, insert, update, delete on public.results to service_role;
