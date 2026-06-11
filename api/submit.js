@@ -32,10 +32,7 @@ module.exports = async function handler(req, res) {
     const parsed = validateSubmission(body);
     if (parsed.error) return json(res, 400, { error: parsed.error });
 
-    const existing = await supabase(`submissions?normalized_name=eq.${encodeURIComponent(parsed.normalizedName)}&select=id`);
-    if (existing.length) {
-      return json(res, 409, { error: "This name has already submitted predictions. Picks are locked after submission." });
-    }
+    let [submission] = await supabase(`submissions?normalized_name=eq.${encodeURIComponent(parsed.normalizedName)}&select=*`);
 
     const events = await supabase("events?select=id,locked,points");
     const options = await supabase("event_options?select=event_id,option_id,label");
@@ -58,28 +55,32 @@ module.exports = async function handler(req, res) {
       return json(res, 400, { error: "No unlocked valid predictions were submitted." });
     }
 
-    const [submission] = await supabase("submissions", {
+    if (!submission) {
+      [submission] = await supabase("submissions", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          display_name: parsed.displayName,
+          normalized_name: parsed.normalizedName
+        })
+      });
+    }
+
+    await supabase("predictions?on_conflict=submission_id,event_id", {
       method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify({
-        display_name: parsed.displayName,
-        normalized_name: parsed.normalizedName
-      })
+      headers: { Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify(predictionRows.map((row) => ({ ...row, submission_id: submission.id, points_awarded: 0 })))
     });
 
-    await supabase("predictions", {
-      method: "POST",
-      body: JSON.stringify(predictionRows.map((row) => ({ ...row, submission_id: submission.id })))
-    });
-
-    json(res, 201, {
+    json(res, 200, {
       submissionId: submission.id,
       displayName: submission.display_name,
-      submittedAt: submission.submitted_at
+      submittedAt: submission.submitted_at,
+      savedPredictions: predictionRows.length
     });
   } catch (error) {
     if (error.status === 409 || error.details?.code === "23505") {
-      return json(res, 409, { error: "This name has already submitted predictions. Picks are locked after submission." });
+      return json(res, 409, { error: "A duplicate prediction conflict occurred. Please refresh and try again." });
     }
     handleError(res, error);
   }

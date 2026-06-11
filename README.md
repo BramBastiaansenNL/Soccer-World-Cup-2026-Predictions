@@ -1,6 +1,6 @@
 # World Cup Fame Picks
 
-A small hosted prediction platform for Teams. Colleagues open one HTTPS link, enter their name, submit predictions once, and watch the leaderboard update as results are entered.
+A small hosted prediction platform for Teams. Colleagues open one HTTPS link, enter their name, save predictions over the course of the World Cup, and watch the leaderboard update as results are entered.
 
 ## What You Need
 
@@ -54,9 +54,18 @@ Open the deployed site and use the Admin panel. Enter the passphrase stored in `
 Admin can:
 
 - Lock or unlock prediction cards.
+- Add or update fixtures.
 - Enter or clear results.
 - Delete a mistaken submission.
 - Export leaderboard and prediction data as CSV.
+
+## Player Flow
+
+- A colleague enters their display name.
+- The app creates that name the first time they save picks.
+- Returning with the same name loads their saved picks.
+- They can add or update unlocked predictions later in the tournament.
+- Locked events stay final.
 
 ## Scoring
 

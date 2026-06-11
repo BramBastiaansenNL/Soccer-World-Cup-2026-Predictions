@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>World Cup Fame Picks</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260611-flag-colors">
   </head>
   <body>
     <main class="app-shell">
@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">Company World Cup challenge</p>
           <h1>World Cup Fame Picks</h1>
-          <p class="hero-copy">Pick the winners once, lock in your call, and climb the internal fame board as results come in.</p>
+          <p class="hero-copy">Pick the big tournament outcomes now, then come back throughout the World Cup to choose winners for newly scheduled matches.</p>
         </div>
         <div class="hero-panel">
           <span class="stat-label">Top prize</span>
@@ -28,7 +28,7 @@
           <form id="predictionForm" class="panel">
             <div class="panel-header">
               <div>
-                <p class="eyebrow">Final submission</p>
+                <p class="eyebrow">Name-based picks</p>
                 <h2>Make your picks</h2>
               </div>
               <span id="submissionStatus" class="status-pill">Open</span>
@@ -42,8 +42,8 @@
             <div id="events"></div>
 
             <div class="submit-bar">
-              <p>Picks are locked after submission. One entry per display name.</p>
-              <button type="submit" class="primary-button">Submit picks</button>
+              <p>You can return with the same name to add or update unlocked predictions. Locked matches stay final.</p>
+              <button type="submit" class="primary-button">Save picks</button>
             </div>
           </form>
 
@@ -51,7 +51,7 @@
             <div class="panel-header">
               <div>
                 <p class="eyebrow">Confirmation</p>
-                <h2>Your picks are locked</h2>
+                <h2>Your saved picks</h2>
               </div>
             </div>
             <div id="myPicksList"></div>
@@ -117,6 +117,6 @@
       </article>
     </template>
 
-    <script src="/app.js"></script>
+    <script src="/app.js?v=20260611-flag-colors"></script>
   </body>
 </html>

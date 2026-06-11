@@ -237,20 +237,29 @@ h3 {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fff;
+  background:
+    linear-gradient(90deg, var(--flag-a, #ffffff) 0 8px, var(--flag-b, #ffffff) 8px 16px, var(--flag-c, #ffffff) 16px 24px, transparent 24px),
+    linear-gradient(135deg, var(--flag-bg-a, rgba(255, 255, 255, 0.85)), var(--flag-bg-b, rgba(255, 255, 255, 0.72)), var(--flag-bg-c, rgba(255, 255, 255, 0.85))),
+    #fff;
   cursor: pointer;
   font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.68);
 }
 
 .option input:checked + span {
   border-color: var(--accent);
   color: var(--accent-strong);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent), 0 8px 18px rgba(0, 109, 119, 0.14);
 }
 
 .option input:disabled + span {
   opacity: 0.56;
   cursor: not-allowed;
+}
+
+.option span.neutral-option {
+  background: #fff;
+  text-shadow: none;
 }
 
 .submit-bar {
