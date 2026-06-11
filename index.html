@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>World Cup Fame Picks</title>
-    <link rel="stylesheet" href="/styles.css?v=20260611-tabs-standings">
+    <link rel="stylesheet" href="/styles.css?v=20260611-score-updates">
   </head>
   <body>
     <main class="app-shell">
@@ -24,9 +24,9 @@
       <section id="setupNotice" class="notice hidden"></section>
 
       <nav class="tabs" aria-label="Dashboard sections">
-        <button class="tab-button active" type="button" data-tab="predictions">Predictions</button>
-        <button class="tab-button" type="button" data-tab="schedule">Schedule</button>
-        <button class="tab-button" type="button" data-tab="standings">Standings</button>
+        <a class="tab-button active" href="#predictions" data-tab="predictions">Predictions</a>
+        <a class="tab-button" href="#schedule" data-tab="schedule">Schedule</a>
+        <a class="tab-button" href="#standings" data-tab="standings">Standings</a>
       </nav>
 
       <div id="predictionsTab" class="layout tab-panel active">
@@ -37,7 +37,10 @@
                 <p class="eyebrow">Name-based picks</p>
                 <h2>Make your picks</h2>
               </div>
-              <span id="submissionStatus" class="status-pill">Open</span>
+              <div class="header-actions">
+                <span id="submissionStatus" class="status-pill">Open</span>
+                <button type="submit" class="primary-button compact-save">Save picks</button>
+              </div>
             </div>
 
             <div class="lock-note">
@@ -89,6 +92,9 @@
                 <button id="saveResult" type="button">Save result</button>
                 <button id="clearResult" type="button">Clear result</button>
                 <button id="toggleLock" type="button">Toggle lock</button>
+                <input id="scoreHome" type="number" min="0" placeholder="Home goals">
+                <input id="scoreAway" type="number" min="0" placeholder="Away goals">
+                <button id="saveScore" type="button">Save score</button>
                 <input id="deleteName" placeholder="Name to delete">
                 <button id="deleteSubmission" type="button">Delete submission</button>
                 <button id="exportCsv" type="button">Export CSV</button>
@@ -147,6 +153,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=20260611-tabs-standings"></script>
+    <script src="/app.js?v=20260611-score-updates"></script>
   </body>
 </html>

@@ -21,6 +21,46 @@ async function recalculateEvent(eventId) {
   });
 }
 
+async function setScoreResult(eventId, homeScore, awayScore, lockEvent = true) {
+  const options = await supabase(`event_options?event_id=eq.${encodeURIComponent(eventId)}&select=option_id,label,sort_order&order=sort_order.asc`);
+  const teamOptions = options.filter((option) => option.option_id !== "draw");
+  if (teamOptions.length < 2) {
+    throw Object.assign(new Error("Score updates require two team options."), { status: 400 });
+  }
+
+  const home = teamOptions[0];
+  const away = teamOptions[1];
+  const homeGoals = Number(homeScore);
+  const awayGoals = Number(awayScore);
+  if (!Number.isInteger(homeGoals) || !Number.isInteger(awayGoals) || homeGoals < 0 || awayGoals < 0) {
+    throw Object.assign(new Error("Scores must be non-negative whole numbers."), { status: 400 });
+  }
+
+  const winningOptionId = homeGoals === awayGoals
+    ? "draw"
+    : homeGoals > awayGoals ? home.option_id : away.option_id;
+  const winningLabel = `${home.label} ${homeGoals}-${awayGoals} ${away.label}`;
+
+  await supabase("results", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({
+      event_id: eventId,
+      winning_option_id: winningOptionId,
+      winning_label: winningLabel,
+      decided_at: new Date().toISOString()
+    })
+  });
+  await recalculateEvent(eventId);
+
+  if (lockEvent) {
+    await supabase(`events?id=eq.${encodeURIComponent(eventId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ locked: true })
+    });
+  }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -58,6 +98,22 @@ module.exports = async function handler(req, res) {
       });
       await recalculateEvent(body.eventId);
       return json(res, 200, { ok: true });
+    }
+
+    if (body.action === "setScore") {
+      await setScoreResult(body.eventId, body.homeScore, body.awayScore, body.lockEvent !== false);
+      return json(res, 200, { ok: true });
+    }
+
+    if (body.action === "batchSetScores") {
+      const results = Array.isArray(body.results) ? body.results : [];
+      if (!results.length) return json(res, 400, { error: "No score results provided." });
+      const updated = [];
+      for (const result of results) {
+        await setScoreResult(result.eventId, result.homeScore, result.awayScore, result.lockEvent !== false);
+        updated.push(result.eventId);
+      }
+      return json(res, 200, { ok: true, updated });
     }
 
     if (body.action === "clearResult") {

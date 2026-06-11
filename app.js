@@ -116,6 +116,7 @@ const tabPanels = {
   schedule: document.querySelector("#scheduleTab"),
   standings: document.querySelector("#standingsTab")
 };
+const validTabs = Object.keys(tabPanels);
 
 function normalizeName(name) {
   return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -346,7 +347,7 @@ function renderStandings() {
     table.innerHTML = `
       <h3>Group ${escapeHtml(group)}</h3>
       <div class="standing-row standing-head">
-        <span>Team</span><span>P</span><span>W</span><span>D</span><span>L</span><span>Pts</span>
+        <span>Team</span><span>P</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>Pts</span>
       </div>
     `;
     for (const row of rows) {
@@ -358,6 +359,7 @@ function renderStandings() {
         <span>${row.wins}</span>
         <span>${row.draws}</span>
         <span>${row.losses}</span>
+        <span>${row.goalDifference}</span>
         <strong>${row.points}</strong>
       `;
       table.append(item);
@@ -390,10 +392,24 @@ function calculateStandings() {
     groups[group] ||= {};
     for (const team of getMatchTeams(match)) {
       groups[group][team] ||= { team, played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+      groups[group][team].goalsFor ||= 0;
+      groups[group][team].goalsAgainst ||= 0;
+      groups[group][team].goalDifference ||= 0;
     }
 
     if (!match.result) continue;
     const teams = getMatchTeams(match);
+    const score = parseScoreResult(match.result.winningLabel);
+    if (score && teams.length >= 2) {
+      const [home, away] = teams;
+      groups[group][home].goalsFor += score.home;
+      groups[group][home].goalsAgainst += score.away;
+      groups[group][away].goalsFor += score.away;
+      groups[group][away].goalsAgainst += score.home;
+      groups[group][home].goalDifference = groups[group][home].goalsFor - groups[group][home].goalsAgainst;
+      groups[group][away].goalDifference = groups[group][away].goalsFor - groups[group][away].goalsAgainst;
+    }
+
     if (match.result.winningOptionId === "draw") {
       for (const team of teams) {
         groups[group][team].played += 1;
@@ -417,8 +433,14 @@ function calculateStandings() {
 
   return Object.fromEntries(Object.entries(groups).map(([group, rows]) => [
     group,
-    Object.values(rows).sort((a, b) => b.points - a.points || b.wins - a.wins || a.team.localeCompare(b.team))
+    Object.values(rows).sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.wins - a.wins || a.team.localeCompare(b.team))
   ]));
+}
+
+function parseScoreResult(label) {
+  const match = String(label || "").match(/\b(\d+)\s*-\s*(\d+)\b/);
+  if (!match) return null;
+  return { home: Number(match[1]), away: Number(match[2]) };
 }
 
 function renderAdminControls() {
@@ -529,14 +551,22 @@ els.predictionForm.addEventListener("submit", async (event) => {
   }
 });
 
+function activateTab(tab) {
+  const target = validTabs.includes(tab) ? tab : "predictions";
+  tabButtons.forEach((item) => item.classList.toggle("active", item.dataset.tab === target));
+  for (const [key, panel] of Object.entries(tabPanels)) {
+    panel.classList.toggle("active", key === target);
+  }
+}
+
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    const target = button.dataset.tab;
-    tabButtons.forEach((item) => item.classList.toggle("active", item === button));
-    for (const [key, panel] of Object.entries(tabPanels)) {
-      panel.classList.toggle("active", key === target);
-    }
+    activateTab(button.dataset.tab);
   });
+});
+
+window.addEventListener("hashchange", () => {
+  activateTab(location.hash.replace("#", ""));
 });
 
 els.adminEvent.addEventListener("change", updateAdminResultOptions);
@@ -566,6 +596,14 @@ document.querySelector("#saveResult").addEventListener("click", () => {
   adminAction("setResult", {
     eventId: els.adminEvent.value,
     optionId: els.adminResult.value
+  });
+});
+
+document.querySelector("#saveScore").addEventListener("click", () => {
+  adminAction("setScore", {
+    eventId: els.adminEvent.value,
+    homeScore: Number(document.querySelector("#scoreHome").value),
+    awayScore: Number(document.querySelector("#scoreAway").value)
   });
 });
 
@@ -619,4 +657,5 @@ document.querySelector("#exportCsv").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+activateTab(location.hash.replace("#", ""));
 loadState();
