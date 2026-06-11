@@ -67,6 +67,12 @@ Admin can:
 - They can add or update unlocked predictions later in the tournament.
 - Locked events stay final.
 
+## Dashboard Sections
+
+- `Predictions`: champion, finalist, semi-finalist, and match winner picks.
+- `Schedule`: all loaded match cards with dates, lock status, and results.
+- `Standings`: group ladders based on entered results. The app tracks wins, draws, losses, and group points; it does not collect goal scores.
+
 ## Scoring
 
 - World Cup winner: 100 points.

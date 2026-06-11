@@ -104,6 +104,126 @@ on conflict (event_id, option_id) do update set
   label = excluded.label,
   sort_order = excluded.sort_order;
 
+with group_slots (group_label, slot, team_id, team_name) as (
+  values
+    ('A', 1, 'mexico', 'Mexico'), ('A', 2, 'south-africa', 'South Africa'), ('A', 3, 'korea-republic', 'Korea Republic'), ('A', 4, 'czechia', 'Czechia'),
+    ('B', 1, 'canada', 'Canada'), ('B', 2, 'bosnia-and-herzegovina', 'Bosnia and Herzegovina'), ('B', 3, 'qatar', 'Qatar'), ('B', 4, 'switzerland', 'Switzerland'),
+    ('C', 1, 'haiti', 'Haiti'), ('C', 2, 'scotland', 'Scotland'), ('C', 3, 'brazil', 'Brazil'), ('C', 4, 'morocco', 'Morocco'),
+    ('D', 1, 'united-states', 'United States'), ('D', 2, 'paraguay', 'Paraguay'), ('D', 3, 'australia', 'Australia'), ('D', 4, 'turkiye', 'Turkiye'),
+    ('E', 1, 'cote-divoire', 'Cote d''Ivoire'), ('E', 2, 'ecuador', 'Ecuador'), ('E', 3, 'germany', 'Germany'), ('E', 4, 'curacao', 'Curacao'),
+    ('F', 1, 'netherlands', 'Netherlands'), ('F', 2, 'japan', 'Japan'), ('F', 3, 'sweden', 'Sweden'), ('F', 4, 'tunisia', 'Tunisia'),
+    ('G', 1, 'ir-iran', 'IR Iran'), ('G', 2, 'new-zealand', 'New Zealand'), ('G', 3, 'belgium', 'Belgium'), ('G', 4, 'egypt', 'Egypt'),
+    ('H', 1, 'saudi-arabia', 'Saudi Arabia'), ('H', 2, 'uruguay', 'Uruguay'), ('H', 3, 'spain', 'Spain'), ('H', 4, 'cabo-verde', 'Cabo Verde'),
+    ('I', 1, 'france', 'France'), ('I', 2, 'senegal', 'Senegal'), ('I', 3, 'iraq', 'Iraq'), ('I', 4, 'norway', 'Norway'),
+    ('J', 1, 'argentina', 'Argentina'), ('J', 2, 'algeria', 'Algeria'), ('J', 3, 'austria', 'Austria'), ('J', 4, 'jordan', 'Jordan'),
+    ('K', 1, 'portugal', 'Portugal'), ('K', 2, 'congo-dr', 'Congo DR'), ('K', 3, 'uzbekistan', 'Uzbekistan'), ('K', 4, 'colombia', 'Colombia'),
+    ('L', 1, 'ghana', 'Ghana'), ('L', 2, 'panama', 'Panama'), ('L', 3, 'england', 'England'), ('L', 4, 'croatia', 'Croatia')
+),
+group_dates (group_label, matchday, date_label, base_order) as (
+  values
+    ('A', 2, 'Thu 18 Jun', 340), ('B', 2, 'Thu 18 Jun', 380),
+    ('C', 2, 'Fri 19 Jun', 420), ('D', 2, 'Fri 19 Jun', 460),
+    ('E', 2, 'Sat 20 Jun', 500), ('F', 2, 'Sat 20 Jun', 540),
+    ('G', 2, 'Sun 21 Jun', 580), ('H', 2, 'Sun 21 Jun', 620),
+    ('I', 2, 'Mon 22 Jun', 660), ('J', 2, 'Mon 22 Jun', 700),
+    ('K', 2, 'Tue 23 Jun', 740), ('L', 2, 'Tue 23 Jun', 780),
+    ('A', 3, 'Wed 24 Jun', 360), ('B', 3, 'Wed 24 Jun', 400), ('C', 3, 'Wed 24 Jun', 440),
+    ('D', 3, 'Thu 25 Jun', 480), ('E', 3, 'Thu 25 Jun', 520), ('F', 3, 'Thu 25 Jun', 560),
+    ('G', 3, 'Fri 26 Jun', 600), ('H', 3, 'Fri 26 Jun', 640), ('I', 3, 'Fri 26 Jun', 680),
+    ('J', 3, 'Sat 27 Jun', 720), ('K', 3, 'Sat 27 Jun', 760), ('L', 3, 'Sat 27 Jun', 800)
+),
+pairings (matchday, pair_no, slot_a, slot_b) as (
+  values
+    (2, 1, 1, 3), (2, 2, 4, 2),
+    (3, 1, 4, 1), (3, 2, 2, 3)
+),
+generated_matches as (
+  select
+    'group-' || lower(d.group_label) || '-md' || d.matchday || '-' || p.pair_no as event_id,
+    d.date_label || ': ' || a.team_name || ' vs ' || b.team_name as title,
+    'Group ' || d.group_label || '.' as description,
+    d.base_order + p.pair_no as display_order,
+    a.team_id as team_a_id,
+    a.team_name as team_a_name,
+    b.team_id as team_b_id,
+    b.team_name as team_b_name
+  from group_dates d
+  join pairings p on p.matchday = d.matchday
+  join group_slots a on a.group_label = d.group_label and a.slot = p.slot_a
+  join group_slots b on b.group_label = d.group_label and b.slot = p.slot_b
+)
+insert into public.events (id, type, title, description, stage, points, importance, display_order, locked)
+select event_id, 'match_winner', title, description, 'Group stage', 8, 30, display_order, false
+from generated_matches
+on conflict (id) do update set
+  type = excluded.type,
+  title = excluded.title,
+  description = excluded.description,
+  stage = excluded.stage,
+  points = excluded.points,
+  importance = excluded.importance,
+  display_order = excluded.display_order,
+  locked = excluded.locked;
+
+with group_slots (group_label, slot, team_id, team_name) as (
+  values
+    ('A', 1, 'mexico', 'Mexico'), ('A', 2, 'south-africa', 'South Africa'), ('A', 3, 'korea-republic', 'Korea Republic'), ('A', 4, 'czechia', 'Czechia'),
+    ('B', 1, 'canada', 'Canada'), ('B', 2, 'bosnia-and-herzegovina', 'Bosnia and Herzegovina'), ('B', 3, 'qatar', 'Qatar'), ('B', 4, 'switzerland', 'Switzerland'),
+    ('C', 1, 'haiti', 'Haiti'), ('C', 2, 'scotland', 'Scotland'), ('C', 3, 'brazil', 'Brazil'), ('C', 4, 'morocco', 'Morocco'),
+    ('D', 1, 'united-states', 'United States'), ('D', 2, 'paraguay', 'Paraguay'), ('D', 3, 'australia', 'Australia'), ('D', 4, 'turkiye', 'Turkiye'),
+    ('E', 1, 'cote-divoire', 'Cote d''Ivoire'), ('E', 2, 'ecuador', 'Ecuador'), ('E', 3, 'germany', 'Germany'), ('E', 4, 'curacao', 'Curacao'),
+    ('F', 1, 'netherlands', 'Netherlands'), ('F', 2, 'japan', 'Japan'), ('F', 3, 'sweden', 'Sweden'), ('F', 4, 'tunisia', 'Tunisia'),
+    ('G', 1, 'ir-iran', 'IR Iran'), ('G', 2, 'new-zealand', 'New Zealand'), ('G', 3, 'belgium', 'Belgium'), ('G', 4, 'egypt', 'Egypt'),
+    ('H', 1, 'saudi-arabia', 'Saudi Arabia'), ('H', 2, 'uruguay', 'Uruguay'), ('H', 3, 'spain', 'Spain'), ('H', 4, 'cabo-verde', 'Cabo Verde'),
+    ('I', 1, 'france', 'France'), ('I', 2, 'senegal', 'Senegal'), ('I', 3, 'iraq', 'Iraq'), ('I', 4, 'norway', 'Norway'),
+    ('J', 1, 'argentina', 'Argentina'), ('J', 2, 'algeria', 'Algeria'), ('J', 3, 'austria', 'Austria'), ('J', 4, 'jordan', 'Jordan'),
+    ('K', 1, 'portugal', 'Portugal'), ('K', 2, 'congo-dr', 'Congo DR'), ('K', 3, 'uzbekistan', 'Uzbekistan'), ('K', 4, 'colombia', 'Colombia'),
+    ('L', 1, 'ghana', 'Ghana'), ('L', 2, 'panama', 'Panama'), ('L', 3, 'england', 'England'), ('L', 4, 'croatia', 'Croatia')
+),
+group_dates (group_label, matchday, date_label, base_order) as (
+  values
+    ('A', 2, 'Thu 18 Jun', 340), ('B', 2, 'Thu 18 Jun', 380),
+    ('C', 2, 'Fri 19 Jun', 420), ('D', 2, 'Fri 19 Jun', 460),
+    ('E', 2, 'Sat 20 Jun', 500), ('F', 2, 'Sat 20 Jun', 540),
+    ('G', 2, 'Sun 21 Jun', 580), ('H', 2, 'Sun 21 Jun', 620),
+    ('I', 2, 'Mon 22 Jun', 660), ('J', 2, 'Mon 22 Jun', 700),
+    ('K', 2, 'Tue 23 Jun', 740), ('L', 2, 'Tue 23 Jun', 780),
+    ('A', 3, 'Wed 24 Jun', 360), ('B', 3, 'Wed 24 Jun', 400), ('C', 3, 'Wed 24 Jun', 440),
+    ('D', 3, 'Thu 25 Jun', 480), ('E', 3, 'Thu 25 Jun', 520), ('F', 3, 'Thu 25 Jun', 560),
+    ('G', 3, 'Fri 26 Jun', 600), ('H', 3, 'Fri 26 Jun', 640), ('I', 3, 'Fri 26 Jun', 680),
+    ('J', 3, 'Sat 27 Jun', 720), ('K', 3, 'Sat 27 Jun', 760), ('L', 3, 'Sat 27 Jun', 800)
+),
+pairings (matchday, pair_no, slot_a, slot_b) as (
+  values
+    (2, 1, 1, 3), (2, 2, 4, 2),
+    (3, 1, 4, 1), (3, 2, 2, 3)
+),
+generated_matches as (
+  select
+    'group-' || lower(d.group_label) || '-md' || d.matchday || '-' || p.pair_no as event_id,
+    a.team_id as team_a_id,
+    a.team_name as team_a_name,
+    b.team_id as team_b_id,
+    b.team_name as team_b_name
+  from group_dates d
+  join pairings p on p.matchday = d.matchday
+  join group_slots a on a.group_label = d.group_label and a.slot = p.slot_a
+  join group_slots b on b.group_label = d.group_label and b.slot = p.slot_b
+),
+generated_options as (
+  select event_id, team_a_id as option_id, team_a_name as label, 10 as sort_order from generated_matches
+  union all
+  select event_id, 'draw' as option_id, 'Draw' as label, 20 as sort_order from generated_matches
+  union all
+  select event_id, team_b_id as option_id, team_b_name as label, 30 as sort_order from generated_matches
+)
+insert into public.event_options (event_id, option_id, label, sort_order)
+select event_id, option_id, label, sort_order
+from generated_options
+on conflict (event_id, option_id) do update set
+  label = excluded.label,
+  sort_order = excluded.sort_order;
+
 delete from public.event_options where event_id like 'match-%';
 
 insert into public.event_options (event_id, option_id, label, sort_order) values

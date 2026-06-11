@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>World Cup Fame Picks</title>
-    <link rel="stylesheet" href="/styles.css?v=20260611-flag-colors">
+    <link rel="stylesheet" href="/styles.css?v=20260611-tabs-standings">
   </head>
   <body>
     <main class="app-shell">
@@ -23,7 +23,13 @@
 
       <section id="setupNotice" class="notice hidden"></section>
 
-      <div class="layout">
+      <nav class="tabs" aria-label="Dashboard sections">
+        <button class="tab-button active" type="button" data-tab="predictions">Predictions</button>
+        <button class="tab-button" type="button" data-tab="schedule">Schedule</button>
+        <button class="tab-button" type="button" data-tab="standings">Standings</button>
+      </nav>
+
+      <div id="predictionsTab" class="layout tab-panel active">
         <section class="prediction-column">
           <form id="predictionForm" class="panel">
             <div class="panel-header">
@@ -32,6 +38,10 @@
                 <h2>Make your picks</h2>
               </div>
               <span id="submissionStatus" class="status-pill">Open</span>
+            </div>
+
+            <div class="lock-note">
+              <strong>Important:</strong> once a match or tournament pick is locked, that prediction is final. You can come back later to add new unlocked match picks, but locked picks cannot be changed.
             </div>
 
             <label class="name-field">
@@ -101,6 +111,26 @@
           </section>
         </aside>
       </div>
+
+      <section id="scheduleTab" class="tab-panel panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Fixtures</p>
+            <h2>Scheduled matches</h2>
+          </div>
+        </div>
+        <div id="scheduleList" class="schedule-list"></div>
+      </section>
+
+      <section id="standingsTab" class="tab-panel panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Tournament ladder</p>
+            <h2>Group standings</h2>
+          </div>
+        </div>
+        <div id="standingsList" class="standings-list"></div>
+      </section>
     </main>
 
     <template id="eventTemplate">
@@ -117,6 +147,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=20260611-flag-colors"></script>
+    <script src="/app.js?v=20260611-tabs-standings"></script>
   </body>
 </html>

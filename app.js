@@ -99,6 +99,8 @@ const els = {
   displayName: document.querySelector("#displayName"),
   events: document.querySelector("#events"),
   leaderboard: document.querySelector("#leaderboard"),
+  scheduleList: document.querySelector("#scheduleList"),
+  standingsList: document.querySelector("#standingsList"),
   submissionStatus: document.querySelector("#submissionStatus"),
   myPicks: document.querySelector("#myPicks"),
   myPicksList: document.querySelector("#myPicksList"),
@@ -106,6 +108,13 @@ const els = {
   adminEvent: document.querySelector("#adminEvent"),
   adminResult: document.querySelector("#adminResult"),
   adminMessage: document.querySelector("#adminMessage")
+};
+
+const tabButtons = [...document.querySelectorAll(".tab-button")];
+const tabPanels = {
+  predictions: document.querySelector("#predictionsTab"),
+  schedule: document.querySelector("#scheduleTab"),
+  standings: document.querySelector("#standingsTab")
 };
 
 function normalizeName(name) {
@@ -149,6 +158,8 @@ async function loadState() {
 
 function render() {
   renderEvents();
+  renderSchedule();
+  renderStandings();
   renderLeaderboard();
   renderAdminControls();
   renderSubmittedState();
@@ -176,7 +187,25 @@ function renderEvents() {
     }
 
     const options = node.querySelector(".options");
-    for (const option of event.options || []) {
+    if (event.type === "match_winner") {
+      renderRadioOptions(options, event);
+    } else {
+      renderDropdownOption(options, event);
+    }
+
+    if (event.result) {
+      const result = document.createElement("p");
+      result.className = "small-message";
+      result.textContent = `Result: ${event.result.winningLabel}`;
+      node.append(result);
+    }
+
+    els.events.append(node);
+  }
+}
+
+function renderRadioOptions(container, event) {
+  for (const option of event.options || []) {
       const label = document.createElement("label");
       label.className = "option";
       const input = document.createElement("input");
@@ -192,18 +221,37 @@ function renderEvents() {
       span.textContent = option.label;
       applyFlagStyle(span, option);
       label.append(input, span);
-      options.append(label);
+      container.append(label);
     }
+}
 
-    if (event.result) {
-      const result = document.createElement("p");
-      result.className = "small-message";
-      result.textContent = `Result: ${event.result.winningLabel}`;
-      node.append(result);
-    }
+function renderDropdownOption(container, event) {
+  const wrap = document.createElement("label");
+  wrap.className = "pick-select";
+  const select = document.createElement("select");
+  select.name = event.id;
+  select.disabled = event.locked;
 
-    els.events.append(node);
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a team";
+  select.append(placeholder);
+
+  for (const option of event.options || []) {
+    const item = document.createElement("option");
+    item.value = option.optionId;
+    item.textContent = option.label;
+    item.selected = state.picks[event.id] === option.optionId;
+    select.append(item);
   }
+
+  select.addEventListener("change", () => {
+    if (select.value) state.picks[event.id] = select.value;
+    else delete state.picks[event.id];
+  });
+
+  wrap.append(select);
+  container.append(wrap);
 }
 
 function applyFlagStyle(element, option) {
@@ -254,6 +302,123 @@ function renderLeaderboard() {
     `;
     els.leaderboard.append(item);
   }
+}
+
+function renderSchedule() {
+  const matches = getMatchEvents();
+  els.scheduleList.innerHTML = "";
+  if (!matches.length) {
+    els.scheduleList.innerHTML = '<p class="small-message">No matches have been scheduled yet.</p>';
+    return;
+  }
+
+  for (const match of matches) {
+    const teams = getMatchTeams(match);
+    const row = document.createElement("article");
+    row.className = "schedule-row";
+    row.innerHTML = `
+      <div>
+        <p class="stage">${escapeHtml(match.stage || "Match")}</p>
+        <h3>${escapeHtml(match.title)}</h3>
+        <p class="description">${escapeHtml(match.description || "")}</p>
+      </div>
+      <div class="schedule-status">
+        <span class="points">${match.points} pts</span>
+        <span class="${match.locked ? "locked" : "open"}">${match.locked ? "Locked" : "Open"}</span>
+        <span>${match.result ? `Result: ${escapeHtml(match.result.winningLabel)}` : teams.join(" / ")}</span>
+      </div>
+    `;
+    els.scheduleList.append(row);
+  }
+}
+
+function renderStandings() {
+  const groups = calculateStandings();
+  els.standingsList.innerHTML = "";
+  if (!Object.keys(groups).length) {
+    els.standingsList.innerHTML = '<p class="small-message">Standings appear once scheduled teams are loaded.</p>';
+    return;
+  }
+
+  for (const [group, rows] of Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))) {
+    const table = document.createElement("section");
+    table.className = "standing-group";
+    table.innerHTML = `
+      <h3>Group ${escapeHtml(group)}</h3>
+      <div class="standing-row standing-head">
+        <span>Team</span><span>P</span><span>W</span><span>D</span><span>L</span><span>Pts</span>
+      </div>
+    `;
+    for (const row of rows) {
+      const item = document.createElement("div");
+      item.className = "standing-row";
+      item.innerHTML = `
+        <span>${escapeHtml(row.team)}</span>
+        <span>${row.played}</span>
+        <span>${row.wins}</span>
+        <span>${row.draws}</span>
+        <span>${row.losses}</span>
+        <strong>${row.points}</strong>
+      `;
+      table.append(item);
+    }
+    els.standingsList.append(table);
+  }
+}
+
+function getMatchEvents() {
+  return [...state.data.events]
+    .filter((event) => event.type === "match_winner")
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title));
+}
+
+function getMatchTeams(match) {
+  return (match.options || [])
+    .filter((option) => option.optionId !== "draw")
+    .map((option) => option.label);
+}
+
+function getGroupFromMatch(match) {
+  const matchGroup = String(match.description || "").match(/Group\s+([A-L])/i);
+  return matchGroup ? matchGroup[1].toUpperCase() : "Other";
+}
+
+function calculateStandings() {
+  const groups = {};
+  for (const match of getMatchEvents()) {
+    const group = getGroupFromMatch(match);
+    groups[group] ||= {};
+    for (const team of getMatchTeams(match)) {
+      groups[group][team] ||= { team, played: 0, wins: 0, draws: 0, losses: 0, points: 0 };
+    }
+
+    if (!match.result) continue;
+    const teams = getMatchTeams(match);
+    if (match.result.winningOptionId === "draw") {
+      for (const team of teams) {
+        groups[group][team].played += 1;
+        groups[group][team].draws += 1;
+        groups[group][team].points += 1;
+      }
+      continue;
+    }
+
+    const winner = match.options.find((option) => option.optionId === match.result.winningOptionId)?.label;
+    for (const team of teams) {
+      groups[group][team].played += 1;
+      if (team === winner) {
+        groups[group][team].wins += 1;
+        groups[group][team].points += 3;
+      } else {
+        groups[group][team].losses += 1;
+      }
+    }
+  }
+
+  return Object.fromEntries(Object.entries(groups).map(([group, rows]) => [
+    group,
+    Object.values(rows).sort((a, b) => b.points - a.points || b.wins - a.wins || a.team.localeCompare(b.team))
+  ]));
 }
 
 function renderAdminControls() {
@@ -309,6 +474,20 @@ function getActiveSubmission() {
   return state.data.submissions.find((item) => item.normalizedName === normalized) || null;
 }
 
+function hydratePicksForName(displayName) {
+  const normalized = normalizeName(displayName);
+  const submission = state.data.submissions.find((item) => item.normalizedName === normalized);
+  if (!submission) return null;
+
+  state.activeName = submission.displayName;
+  localStorage.setItem("activeName", submission.displayName);
+  const saved = state.data.predictions.filter((prediction) => prediction.submissionId === submission.id);
+  for (const prediction of saved) {
+    state.picks[prediction.eventId] = prediction.selectedOptionId;
+  }
+  return submission;
+}
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -323,6 +502,8 @@ els.predictionForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const displayName = els.displayName.value.trim().replace(/\s+/g, " ");
   if (!displayName) return;
+
+  hydratePicksForName(displayName);
 
   if (!state.picks.champion) {
     alert("Please make the World Cup winner pick before submitting.");
@@ -346,6 +527,16 @@ els.predictionForm.addEventListener("submit", async (event) => {
   } catch (error) {
     alert(error.message);
   }
+});
+
+tabButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = button.dataset.tab;
+    tabButtons.forEach((item) => item.classList.toggle("active", item === button));
+    for (const [key, panel] of Object.entries(tabPanels)) {
+      panel.classList.toggle("active", key === target);
+    }
+  });
 });
 
 els.adminEvent.addEventListener("change", updateAdminResultOptions);
