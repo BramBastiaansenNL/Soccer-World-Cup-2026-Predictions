@@ -20,6 +20,22 @@ function validateSubmission(body) {
   return { displayName, normalizedName, picks };
 }
 
+function getDeadline(event) {
+  if (event.closes_at) return new Date(event.closes_at);
+  if (["champion", "finalist", "semi_finalist"].includes(event.type)) {
+    return new Date("2026-06-27T21:59:00Z");
+  }
+  const match = String(event.title || "").match(/\b(\d{1,2})\s+(Jun|Jul)\b/i);
+  if (!match) return null;
+  const month = match[2].toLowerCase() === "jun" ? 5 : 6;
+  return new Date(Date.UTC(2026, month, Number(match[1]) - 1, 22, 0, 0));
+}
+
+function isClosed(event) {
+  const deadline = getDeadline(event);
+  return Boolean(event.locked || (deadline && Date.now() > deadline.getTime()));
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return json(res, 405, { error: "Method not allowed." });
@@ -34,7 +50,7 @@ module.exports = async function handler(req, res) {
 
     let [submission] = await supabase(`submissions?normalized_name=eq.${encodeURIComponent(parsed.normalizedName)}&select=*`);
 
-    const events = await supabase("events?select=id,locked,points");
+    const events = await supabase("events?select=id,type,title,locked,points,closes_at");
     const options = await supabase("event_options?select=event_id,option_id,label");
     const eventMap = new Map(events.map((event) => [event.id, event]));
     const optionMap = new Map(options.map((option) => [`${option.event_id}:${option.option_id}`, option]));
@@ -43,7 +59,7 @@ module.exports = async function handler(req, res) {
     for (const [eventId, optionId] of Object.entries(parsed.picks)) {
       const event = eventMap.get(eventId);
       const option = optionMap.get(`${eventId}:${optionId}`);
-      if (!event || event.locked || !option) continue;
+      if (!event || String(event.id).startsWith("__") || isClosed(event) || !option) continue;
       predictionRows.push({
         event_id: eventId,
         selected_option_id: optionId,

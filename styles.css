@@ -210,10 +210,17 @@ h3 {
   line-height: 1.45;
 }
 
+.name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
 .name-field {
   display: grid;
   gap: 8px;
-  margin-bottom: 18px;
   color: var(--muted);
   font-weight: 700;
 }
@@ -460,13 +467,60 @@ details summary {
   gap: 10px;
 }
 
-.pick-row {
+.pick-row,
+.history-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.history-list {
+  display: grid;
+  gap: 18px;
+}
+
+.history-section {
+  display: grid;
+  gap: 10px;
+}
+
+.history-section h3 {
+  margin-bottom: 0;
+}
+
+.history-pick {
+  min-width: 160px;
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+  align-content: center;
+}
+
+.history-pick strong {
+  color: var(--gold);
+}
+
+.champion-change {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid #f0c36d;
+  border-radius: 8px;
+  background: #fff8e8;
+}
+
+.champion-change select {
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
 }
 
 .schedule-list,
@@ -580,15 +634,20 @@ details summary {
   .submit-bar,
   .event-header,
   .panel-header,
+  .name-row,
+  .champion-change,
   .schedule-row {
     flex-direction: column;
   }
 
-  .schedule-row {
+  .schedule-row,
+  .name-row,
+  .champion-change {
     grid-template-columns: 1fr;
   }
 
-  .schedule-status {
+  .schedule-status,
+  .history-pick {
     justify-items: start;
   }
 

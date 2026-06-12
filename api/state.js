@@ -20,8 +20,9 @@ function rankLeaderboard(submissions, predictions) {
   for (const prediction of predictions) {
     const row = bySubmission.get(prediction.submission_id);
     if (!row) continue;
-    row.picks += 1;
     row.totalPoints += prediction.points_awarded || 0;
+    if (String(prediction.event_id || "").startsWith("__")) continue;
+    row.picks += 1;
     if ((prediction.points_awarded || 0) > 0) row.correctPicks += 1;
   }
 
@@ -108,7 +109,8 @@ async function ensureDefaultData() {
   const existingEvents = await supabase("events?select=id,type");
   const hasEnoughMatches = existingEvents.filter((event) => event.type === "match_winner").length >= 72;
   const hasChampion = existingEvents.some((event) => event.id === "champion");
-  if (hasEnoughMatches && hasChampion) {
+  const hasPenalty = existingEvents.some((event) => event.id === "__champion-change-penalty");
+  if (hasEnoughMatches && hasChampion && hasPenalty) {
     defaultsChecked = true;
     return;
   }

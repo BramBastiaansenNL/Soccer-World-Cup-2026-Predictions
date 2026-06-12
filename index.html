@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>World Cup Fame Picks</title>
-    <link rel="stylesheet" href="/styles.css?v=20260611-score-updates">
+    <link rel="stylesheet" href="/styles.css?v=20260612-returning-picks">
   </head>
   <body>
     <main class="app-shell">
@@ -27,6 +27,7 @@
         <a class="tab-button active" href="#predictions" data-tab="predictions" aria-current="page">Predictions</a>
         <a class="tab-button" href="#schedule" data-tab="schedule">Schedule</a>
         <a class="tab-button" href="#standings" data-tab="standings">Standings</a>
+        <a class="tab-button" href="#history" data-tab="history">History</a>
       </nav>
 
       <div id="predictionsTab" class="layout tab-panel active" tabindex="-1">
@@ -47,10 +48,13 @@
               <strong>Important:</strong> once a match or tournament pick is locked, that prediction is final. You can come back later to add new unlocked match picks, but locked picks cannot be changed.
             </div>
 
-            <label class="name-field">
-              <span>Your display name</span>
-              <input id="displayName" name="displayName" maxlength="80" autocomplete="name" placeholder="e.g. Bea Jansen" required>
-            </label>
+            <div class="name-row">
+              <label class="name-field">
+                <span>Your display name</span>
+                <input id="displayName" name="displayName" maxlength="80" autocomplete="name" placeholder="e.g. Bea Jansen" required>
+              </label>
+              <button id="loadName" type="button" class="secondary">Load picks</button>
+            </div>
 
             <div id="events"></div>
 
@@ -137,6 +141,16 @@
         </div>
         <div id="standingsList" class="standings-list"></div>
       </section>
+
+      <section id="historyTab" class="tab-panel panel" tabindex="-1">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Your record</p>
+            <h2>Saved picks and played matches</h2>
+          </div>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
     </main>
 
     <template id="eventTemplate">
@@ -153,6 +167,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=20260611-score-updates"></script>
+    <script src="/app.js?v=20260612-returning-picks"></script>
   </body>
 </html>

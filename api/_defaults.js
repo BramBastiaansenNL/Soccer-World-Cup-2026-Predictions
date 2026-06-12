@@ -107,7 +107,8 @@ function getDefaultEvents() {
     ["semi-finalist-1", "semi_finalist", "Semi-finalist pick 1", "Pick a country you expect to reach the semi-finals.", 35, 70, 40],
     ["semi-finalist-2", "semi_finalist", "Semi-finalist pick 2", "Pick a country you expect to reach the semi-finals.", 35, 70, 50],
     ["semi-finalist-3", "semi_finalist", "Semi-finalist pick 3", "Pick a country you expect to reach the semi-finals.", 35, 70, 60],
-    ["semi-finalist-4", "semi_finalist", "Semi-finalist pick 4", "Pick a country you expect to reach the semi-finals.", 35, 70, 70]
+    ["semi-finalist-4", "semi_finalist", "Semi-finalist pick 4", "Pick a country you expect to reach the semi-finals.", 35, 70, 70],
+    ["__champion-change-penalty", "champion", "Champion pick change penalty", "Internal score adjustment for champion pick changes.", 1, 0, 9999]
   ].map(([id, type, title, description, points, importance, display_order]) => ({
     id,
     type,
@@ -126,7 +127,7 @@ function getDefaultEvents() {
 function getDefaultOptions() {
   const teams = getDefaultTeams();
   const tournamentOptions = getDefaultEvents()
-    .filter((event) => ["champion", "finalist", "semi_finalist"].includes(event.type))
+    .filter((event) => ["champion", "finalist", "semi_finalist"].includes(event.type) && !event.id.startsWith("__"))
     .flatMap((event) => teams.map((team) => ({
       event_id: event.id,
       option_id: team.id,

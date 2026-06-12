@@ -102,6 +102,7 @@ const els = {
   leaderboard: document.querySelector("#leaderboard"),
   scheduleList: document.querySelector("#scheduleList"),
   standingsList: document.querySelector("#standingsList"),
+  historyList: document.querySelector("#historyList"),
   submissionStatus: document.querySelector("#submissionStatus"),
   myPicks: document.querySelector("#myPicks"),
   myPicksList: document.querySelector("#myPicksList"),
@@ -115,7 +116,8 @@ const tabButtons = [...document.querySelectorAll(".tab-button")];
 const tabPanels = {
   predictions: document.querySelector("#predictionsTab"),
   schedule: document.querySelector("#scheduleTab"),
-  standings: document.querySelector("#standingsTab")
+  standings: document.querySelector("#standingsTab"),
+  history: document.querySelector("#historyTab")
 };
 const validTabs = Object.keys(tabPanels);
 
@@ -125,6 +127,31 @@ function normalizeName(name) {
 
 function byImportance(a, b) {
   return b.importance - a.importance || a.displayOrder - b.displayOrder || a.title.localeCompare(b.title);
+}
+
+function isInternalEvent(event) {
+  return String(event.id || "").startsWith("__");
+}
+
+function getEventDeadline(event) {
+  if (event.closesAt) return new Date(event.closesAt);
+  if (["champion", "finalist", "semi_finalist"].includes(event.type)) {
+    return new Date("2026-06-27T21:59:00Z");
+  }
+  const parsed = parseMatchDate(event);
+  if (!parsed) return null;
+  return new Date(Date.UTC(2026, parsed.month, parsed.day - 1, 22, 0, 0));
+}
+
+function isClosed(event) {
+  const deadline = getEventDeadline(event);
+  return Boolean(event.locked || event.result || (deadline && Date.now() > deadline.getTime()));
+}
+
+function formatDeadline(event) {
+  const deadline = getEventDeadline(event);
+  if (!deadline) return "";
+  return `Closes ${deadline.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`;
 }
 
 function showNotice(message) {
@@ -162,6 +189,7 @@ function render() {
   renderEvents();
   renderSchedule();
   renderStandings();
+  renderHistory();
   renderLeaderboard();
   renderAdminControls();
   renderSubmittedState();
@@ -174,8 +202,10 @@ function renderEvents() {
   rebuildSavedPicks(activeSubmission);
 
   for (const event of [...state.data.events].sort(byImportance)) {
+    if (isInternalEvent(event)) continue;
     const savedPrediction = state.savedPicks[event.id] || null;
     if (savedPrediction && !state.picks[event.id]) state.picks[event.id] = savedPrediction.selectedOptionId;
+    if (savedPrediction || isClosed(event)) continue;
 
     const node = template.content.firstElementChild.cloneNode(true);
     node.classList.toggle("featured", event.type === "champion");
@@ -184,9 +214,7 @@ function renderEvents() {
     node.querySelector("h3").textContent = event.title;
     node.querySelector(".description").textContent = event.description || "";
     node.querySelector(".points").textContent = `${event.points} pts`;
-    if (event.closesAt) {
-      node.querySelector(".description").textContent = `${event.description || ""} Closes ${new Date(event.closesAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.`.trim();
-    }
+    node.querySelector(".description").textContent = `${event.description || ""} ${formatDeadline(event)}`.trim();
 
     const options = node.querySelector(".options");
     if (event.type === "match_winner") {
@@ -215,6 +243,7 @@ function renderEvents() {
 
 function renderRadioOptions(container, event) {
   const hasSavedPick = Boolean(state.savedPicks[event.id]);
+  const closed = isClosed(event);
   for (const option of event.options || []) {
       const label = document.createElement("label");
       label.className = "option";
@@ -222,7 +251,7 @@ function renderRadioOptions(container, event) {
       input.type = "radio";
       input.name = event.id;
       input.value = option.optionId;
-      input.disabled = event.locked || hasSavedPick;
+      input.disabled = closed || hasSavedPick;
       input.checked = state.picks[event.id] === option.optionId;
       input.addEventListener("change", () => {
         state.picks[event.id] = option.optionId;
@@ -237,11 +266,12 @@ function renderRadioOptions(container, event) {
 
 function renderDropdownOption(container, event) {
   const hasSavedPick = Boolean(state.savedPicks[event.id]);
+  const closed = isClosed(event);
   const wrap = document.createElement("label");
   wrap.className = "pick-select";
   const select = document.createElement("select");
   select.name = event.id;
-  select.disabled = event.locked || hasSavedPick;
+  select.disabled = closed || hasSavedPick;
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -344,6 +374,102 @@ function renderSchedule() {
   }
 }
 
+function renderHistory() {
+  if (!els.historyList) return;
+  els.historyList.innerHTML = "";
+  const activeSubmission = getActiveSubmission();
+  rebuildSavedPicks(activeSubmission);
+  const savedRows = activeSubmission
+    ? state.data.predictions
+      .filter((prediction) => prediction.submissionId === activeSubmission.id)
+      .map((prediction) => ({
+        prediction,
+        event: state.data.events.find((event) => event.id === prediction.eventId)
+      }))
+      .filter((row) => row.event && !isInternalEvent(row.event))
+    : [];
+  const playedRows = state.data.events
+    .filter((event) => event.type === "match_winner" && event.result)
+    .map((event) => ({ event, prediction: state.savedPicks[event.id] || null }));
+
+  if (!savedRows.length && !playedRows.length) {
+    els.historyList.innerHTML = '<p class="small-message">Load your name to see saved picks here. Played matches will also appear as results are entered.</p>';
+    return;
+  }
+
+  if (savedRows.length) {
+    const section = document.createElement("section");
+    section.className = "history-section";
+    section.innerHTML = "<h3>Your saved picks</h3>";
+    for (const row of savedRows.sort((a, b) => bySchedule(a.event, b.event))) {
+      section.append(createHistoryRow(row.event, row.prediction));
+    }
+    els.historyList.append(section);
+  }
+
+  const championEvent = state.data.events.find((event) => event.id === "champion");
+  const championPick = state.savedPicks.champion;
+  if (activeSubmission && championEvent && championPick && !championEvent.result) {
+    els.historyList.append(createChampionChangePanel(championEvent, championPick));
+  }
+
+  if (playedRows.length) {
+    const section = document.createElement("section");
+    section.className = "history-section";
+    section.innerHTML = "<h3>Played matches</h3>";
+    for (const row of playedRows.sort((a, b) => bySchedule(a.event, b.event))) {
+      section.append(createHistoryRow(row.event, row.prediction));
+    }
+    els.historyList.append(section);
+  }
+}
+
+function createHistoryRow(event, prediction) {
+  const row = document.createElement("div");
+  row.className = "history-row";
+  const resultText = event.result ? `Result: ${event.result.winningLabel}` : "Awaiting result";
+  const points = prediction ? `${prediction.pointsAwarded || 0} pts` : "";
+  row.innerHTML = `
+    <div>
+      <p class="stage">${escapeHtml(event.stage || "Tournament")}</p>
+      <strong>${escapeHtml(event.title)}</strong>
+      <p class="description">${escapeHtml(resultText)}</p>
+    </div>
+    <div class="history-pick">
+      <span>${prediction ? escapeHtml(prediction.selectedLabel) : "No pick"}</span>
+      <strong>${escapeHtml(points)}</strong>
+    </div>
+  `;
+  return row;
+}
+
+function createChampionChangePanel(event, prediction) {
+  const panel = document.createElement("section");
+  panel.className = "champion-change";
+  const select = document.createElement("select");
+  select.id = "championChangeSelect";
+  for (const option of event.options || []) {
+    const item = document.createElement("option");
+    item.value = option.optionId;
+    item.textContent = option.label;
+    item.selected = option.optionId === prediction.selectedOptionId;
+    select.append(item);
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Change champion (-20 pts)";
+  button.addEventListener("click", changeChampionPick);
+  panel.innerHTML = `
+    <div>
+      <p class="eyebrow">One expensive lifeline</p>
+      <h3>Change your champion pick</h3>
+      <p class="description">Changing the champion pick costs 20 fame points each time. Negative points are possible.</p>
+    </div>
+  `;
+  panel.append(select, button);
+  return panel;
+}
+
 function renderStandings() {
   const groups = calculateStandings();
   els.standingsList.innerHTML = "";
@@ -382,7 +508,24 @@ function renderStandings() {
 function getMatchEvents() {
   return [...state.data.events]
     .filter((event) => event.type === "match_winner")
-    .sort((a, b) => a.displayOrder - b.displayOrder || a.title.localeCompare(b.title));
+    .sort(bySchedule);
+}
+
+function bySchedule(a, b) {
+  const dateA = parseMatchDate(a);
+  const dateB = parseMatchDate(b);
+  const timeA = dateA ? Date.UTC(2026, dateA.month, dateA.day) : Number.MAX_SAFE_INTEGER;
+  const timeB = dateB ? Date.UTC(2026, dateB.month, dateB.day) : Number.MAX_SAFE_INTEGER;
+  return timeA - timeB || a.displayOrder - b.displayOrder || a.title.localeCompare(b.title);
+}
+
+function parseMatchDate(event) {
+  const match = String(event?.title || "").match(/\b(\d{1,2})\s+(Jun|Jul)\b/i);
+  if (!match) return null;
+  return {
+    day: Number(match[1]),
+    month: match[2].toLowerCase() === "jun" ? 5 : 6
+  };
 }
 
 function getMatchTeams(match) {
@@ -457,6 +600,7 @@ function parseScoreResult(label) {
 function renderAdminControls() {
   els.adminEvent.innerHTML = "";
   for (const event of state.data.events) {
+    if (isInternalEvent(event)) continue;
     const option = document.createElement("option");
     option.value = event.id;
     option.textContent = `${event.title}${event.locked ? " (locked)" : ""}`;
@@ -493,6 +637,7 @@ function renderSubmittedState() {
   els.myPicksList.innerHTML = "";
   for (const prediction of predictions) {
     const event = state.data.events.find((item) => item.id === prediction.eventId);
+    if (!event || isInternalEvent(event)) continue;
     const row = document.createElement("div");
     row.className = "pick-row";
     row.innerHTML = `<strong>${escapeHtml(event?.title || prediction.eventId)}</strong><span>${escapeHtml(prediction.selectedLabel)}</span>`;
@@ -534,7 +679,10 @@ function hydratePicksForName(displayName) {
 
 function getNewPicksOnly() {
   return Object.fromEntries(
-    Object.entries(state.picks).filter(([eventId]) => !state.savedPicks[eventId])
+    Object.entries(state.picks).filter(([eventId]) => {
+      const event = state.data.events.find((item) => item.id === eventId);
+      return event && !state.savedPicks[eventId] && !isClosed(event) && !isInternalEvent(event);
+    })
   );
 }
 
@@ -555,7 +703,7 @@ els.predictionForm.addEventListener("submit", async (event) => {
 
   hydratePicksForName(displayName);
 
-  if (!state.picks.champion) {
+  if (!state.picks.champion && !state.savedPicks.champion) {
     alert("Please make the World Cup winner pick before submitting.");
     return;
   }
@@ -584,6 +732,40 @@ els.predictionForm.addEventListener("submit", async (event) => {
     alert(error.message);
   }
 });
+
+document.querySelector("#loadName").addEventListener("click", () => {
+  const displayName = els.displayName.value.trim().replace(/\s+/g, " ");
+  if (!displayName) {
+    alert("Enter your display name first.");
+    return;
+  }
+  const submission = hydratePicksForName(displayName);
+  if (submission) {
+    alert(`Welcome back, ${submission.displayName}. Your saved picks are loaded.`);
+  } else {
+    state.activeName = displayName;
+    localStorage.setItem("activeName", displayName);
+    alert("No saved picks found yet. You can start with this name.");
+  }
+  render();
+});
+
+async function changeChampionPick() {
+  const displayName = els.displayName.value.trim().replace(/\s+/g, " ");
+  const select = document.querySelector("#championChangeSelect");
+  if (!displayName || !select?.value) return;
+  if (!confirm("Change your champion pick for a 20 point penalty?")) return;
+  try {
+    const result = await api("/api/changeChampion", {
+      method: "POST",
+      body: JSON.stringify({ displayName, optionId: select.value })
+    });
+    alert(`Champion pick changed to ${result.selectedLabel}. A 20 point penalty was applied.`);
+    await loadState();
+  } catch (error) {
+    alert(error.message);
+  }
+}
 
 function tabFromLocation() {
   const hashTab = location.hash.replace("#", "");
