@@ -129,6 +129,14 @@ function byImportance(a, b) {
   return b.importance - a.importance || a.displayOrder - b.displayOrder || a.title.localeCompare(b.title);
 }
 
+function byPredictionOrder(a, b) {
+  const aIsMatch = a.type === "match_winner";
+  const bIsMatch = b.type === "match_winner";
+  if (aIsMatch && bIsMatch) return bySchedule(a, b);
+  if (aIsMatch !== bIsMatch) return aIsMatch ? 1 : -1;
+  return byImportance(a, b);
+}
+
 function isInternalEvent(event) {
   return String(event.id || "").startsWith("__");
 }
@@ -201,7 +209,7 @@ function renderEvents() {
   const activeSubmission = getActiveSubmission();
   rebuildSavedPicks(activeSubmission);
 
-  for (const event of [...state.data.events].sort(byImportance)) {
+  for (const event of [...state.data.events].sort(byPredictionOrder)) {
     if (isInternalEvent(event)) continue;
     const savedPrediction = state.savedPicks[event.id] || null;
     if (savedPrediction && !state.picks[event.id]) state.picks[event.id] = savedPrediction.selectedOptionId;
