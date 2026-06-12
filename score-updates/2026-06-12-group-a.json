@@ -1,0 +1,12 @@
+[
+  {
+    "eventId": "match-001",
+    "homeScore": 2,
+    "awayScore": 0
+  },
+  {
+    "eventId": "match-002",
+    "homeScore": 2,
+    "awayScore": 1
+  }
+]

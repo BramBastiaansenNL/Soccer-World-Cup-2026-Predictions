@@ -140,7 +140,7 @@ function getEventDeadline(event) {
   }
   const parsed = parseMatchDate(event);
   if (!parsed) return null;
-  return new Date(Date.UTC(2026, parsed.month, parsed.day - 1, 22, 0, 0));
+  return new Date(Date.UTC(2026, parsed.month, parsed.day, 0, 0, 0));
 }
 
 function isClosed(event) {
@@ -840,6 +840,19 @@ document.querySelector("#saveScore").addEventListener("click", () => {
     homeScore: Number(document.querySelector("#scoreHome").value),
     awayScore: Number(document.querySelector("#scoreAway").value)
   });
+});
+
+document.querySelector("#saveBatchScores").addEventListener("click", () => {
+  try {
+    const results = JSON.parse(document.querySelector("#batchScores").value || "[]");
+    if (!Array.isArray(results) || !results.length) {
+      els.adminMessage.textContent = "Paste a JSON array of score results first.";
+      return;
+    }
+    adminAction("batchSetScores", { results });
+  } catch {
+    els.adminMessage.textContent = "Batch scores must be valid JSON.";
+  }
 });
 
 document.querySelector("#clearResult").addEventListener("click", () => {

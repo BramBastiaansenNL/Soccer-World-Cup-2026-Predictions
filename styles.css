@@ -226,6 +226,7 @@ h3 {
 }
 
 .name-field input,
+.admin-grid textarea,
 .admin-grid input,
 .admin-grid select {
   width: 100%;
@@ -460,6 +461,11 @@ details summary {
   width: 100%;
   border: 0;
   border-top: 1px solid var(--line);
+}
+
+.admin-grid textarea {
+  min-height: 110px;
+  resize: vertical;
 }
 
 #myPicksList {
