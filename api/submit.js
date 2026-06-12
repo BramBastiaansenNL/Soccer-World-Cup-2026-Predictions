@@ -28,7 +28,7 @@ function getDeadline(event) {
   const match = String(event.title || "").match(/\b(\d{1,2})\s+(Jun|Jul)\b/i);
   if (!match) return null;
   const month = match[2].toLowerCase() === "jun" ? 5 : 6;
-  return new Date(Date.UTC(2026, month, Number(match[1]), 0, 0, 0));
+  return new Date(Date.UTC(2026, month, Number(match[1]) - 1, 22, 0, 0));
 }
 
 function isClosed(event) {

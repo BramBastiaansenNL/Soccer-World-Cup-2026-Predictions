@@ -140,7 +140,7 @@ function getEventDeadline(event) {
   }
   const parsed = parseMatchDate(event);
   if (!parsed) return null;
-  return new Date(Date.UTC(2026, parsed.month, parsed.day, 0, 0, 0));
+  return new Date(Date.UTC(2026, parsed.month, parsed.day - 1, 22, 0, 0));
 }
 
 function isClosed(event) {
