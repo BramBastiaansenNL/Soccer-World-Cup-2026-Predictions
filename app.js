@@ -42,6 +42,7 @@ const state = {
   activeName: localStorage.getItem("activeName") || "",
   apiReady: true
 };
+const { getEventDisplayTitle, hasResolvedParticipants } = window.WorldCupDates;
 
 const flagColors = {
   algeria: ["#006233", "#ffffff", "#d21034"],
@@ -145,11 +146,6 @@ function isKnockoutEvent(event) {
   return event?.type === "knockout_match_winner";
 }
 
-function hasResolvedParticipants(event) {
-  return !isKnockoutEvent(event) || (event.options || []).length === 2
-    && event.options.every((option) => !/^(winner|loser)-match-\d{3}$/.test(option.optionId));
-}
-
 function isInternalEvent(event) {
   return String(event.id || "").startsWith("__");
 }
@@ -232,7 +228,7 @@ function renderEvents() {
     node.classList.toggle("featured", event.type === "champion");
     node.classList.toggle("played", Boolean(event.result));
     node.querySelector(".stage").textContent = event.stage || "Tournament";
-    node.querySelector("h3").textContent = event.title;
+    node.querySelector("h3").textContent = getEventDisplayTitle(event);
     node.querySelector(".description").textContent = event.description || "";
     node.querySelector(".points").textContent = `${event.points} pts`;
     node.querySelector(".description").textContent = `${event.description || ""} ${formatDeadline(event)}`.trim();
@@ -432,7 +428,7 @@ function createScheduleRow(match) {
   row.innerHTML = `
     <div>
       <p class="stage">${escapeHtml(match.stage || "Match")}</p>
-      <h3>${escapeHtml(match.title)}</h3>
+      <h3>${escapeHtml(getEventDisplayTitle(match))}</h3>
       <p class="description">${escapeHtml(match.description || "")}</p>
     </div>
     <div class="schedule-status">
@@ -514,7 +510,7 @@ function createHistoryRow(event, prediction) {
   row.innerHTML = `
     <div>
       <p class="stage">${escapeHtml(event.stage || "Tournament")}</p>
-      <strong>${escapeHtml(event.title)}</strong>
+      <strong>${escapeHtml(getEventDisplayTitle(event))}</strong>
       <p class="description">${escapeHtml(resultText)}</p>
     </div>
     <div class="history-pick">
@@ -594,10 +590,10 @@ function getMatchEvents() {
 }
 
 function bySchedule(a, b) {
-  const dateA = parseMatchDate(a);
-  const dateB = parseMatchDate(b);
-  const timeA = dateA ? Date.UTC(2026, dateA.month, dateA.day) : Number.MAX_SAFE_INTEGER;
-  const timeB = dateB ? Date.UTC(2026, dateB.month, dateB.day) : Number.MAX_SAFE_INTEGER;
+  const dateA = a.closesAt ? new Date(a.closesAt) : parseMatchDate(a);
+  const dateB = b.closesAt ? new Date(b.closesAt) : parseMatchDate(b);
+  const timeA = dateA instanceof Date ? dateA.getTime() : dateA ? Date.UTC(2026, dateA.month, dateA.day) : Number.MAX_SAFE_INTEGER;
+  const timeB = dateB instanceof Date ? dateB.getTime() : dateB ? Date.UTC(2026, dateB.month, dateB.day) : Number.MAX_SAFE_INTEGER;
   return timeA - timeB || a.displayOrder - b.displayOrder || a.title.localeCompare(b.title);
 }
 
@@ -685,7 +681,7 @@ function renderAdminControls() {
     if (isInternalEvent(event)) continue;
     const option = document.createElement("option");
     option.value = event.id;
-    option.textContent = `${event.title}${event.locked ? " (locked)" : ""}`;
+    option.textContent = `${getEventDisplayTitle(event)}${event.locked ? " (locked)" : ""}`;
     els.adminEvent.append(option);
   }
   updateAdminResultOptions();
@@ -722,7 +718,7 @@ function renderSubmittedState() {
     if (!event || isInternalEvent(event)) continue;
     const row = document.createElement("div");
     row.className = "pick-row";
-    row.innerHTML = `<strong>${escapeHtml(event?.title || prediction.eventId)}</strong><span>${escapeHtml(prediction.selectedLabel)}</span>`;
+    row.innerHTML = `<strong>${escapeHtml(event ? getEventDisplayTitle(event) : prediction.eventId)}</strong><span>${escapeHtml(prediction.selectedLabel)}</span>`;
     els.myPicksList.append(row);
   }
   els.myPicks.classList.remove("hidden");

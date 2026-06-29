@@ -133,7 +133,7 @@ async function ensureDefaultData() {
   if (defaultsChecked || process.env.AUTO_SEED_DEFAULTS === "false") return;
 
   const [existingEvents, existingOptions, existingDependencies] = await Promise.all([
-    supabase("events?select=id,type"),
+    supabase("events?select=id,type,closes_at"),
     supabase("event_options?select=event_id,option_id"),
     supabase("knockout_dependencies?select=source_event_id,outcome,target_event_id,target_slot")
   ]);
@@ -141,6 +141,17 @@ async function ensureDefaultData() {
   const hasKnockoutMatches = existingEvents.filter((event) => event.type === "knockout_match_winner").length >= 32;
   const hasChampion = existingEvents.some((event) => event.id === "champion");
   const hasPenalty = existingEvents.some((event) => event.id === "__champion-change-penalty");
+  const defaultKnockoutEvents = getDefaultEvents().filter((event) => event.type === "knockout_match_winner");
+  const existingEventById = new Map(existingEvents.map((event) => [event.id, event]));
+  for (const event of defaultKnockoutEvents) {
+    const existing = existingEventById.get(event.id);
+    if (existing && new Date(existing.closes_at).getTime() !== new Date(event.closes_at).getTime()) {
+      await supabase(`events?id=eq.${encodeURIComponent(event.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ closes_at: event.closes_at })
+      });
+    }
+  }
   if (hasEnoughMatches && hasKnockoutMatches && existingDependencies.length >= 32 && hasChampion && hasPenalty) {
     defaultsChecked = true;
     return;
