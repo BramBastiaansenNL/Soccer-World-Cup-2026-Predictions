@@ -1,5 +1,5 @@
 const { handleError, json, requireConfig, supabase } = require("./_supabase");
-const { getDefaultEvents, getDefaultMatchIds, getDefaultOptions, getDefaultTeams } = require("./_defaults");
+const { getDefaultEvents, getDefaultOptions, getDefaultTeams, getKnockoutDependencies } = require("./_defaults");
 
 let defaultsChecked = false;
 
@@ -41,13 +41,31 @@ module.exports = async function handler(req, res) {
   try {
     await ensureDefaultData();
 
-    const [events, options, results, submissions, predictions] = await Promise.all([
+    const [events, options, results, submissions, predictions, dependencies] = await Promise.all([
       supabase("events?select=*&order=display_order.asc"),
       supabase("event_options?select=*&order=sort_order.asc"),
       supabase("results?select=*"),
       supabase("submissions?select=*&order=submitted_at.asc"),
-      supabase("predictions?select=*")
+      supabase("predictions?select=*"),
+      supabase("knockout_dependencies?select=*")
     ]);
+
+    const sourcesByTarget = dependencies.reduce((acc, dependency) => {
+      acc[dependency.target_event_id] ||= {};
+      acc[dependency.target_event_id][dependency.target_slot] = {
+        eventId: dependency.source_event_id,
+        outcome: dependency.outcome
+      };
+      return acc;
+    }, {});
+    const advancesBySource = dependencies.reduce((acc, dependency) => {
+      acc[dependency.source_event_id] ||= {};
+      acc[dependency.source_event_id][dependency.outcome] = {
+        eventId: dependency.target_event_id,
+        slot: dependency.target_slot
+      };
+      return acc;
+    }, {});
 
     const optionsByEvent = options.reduce((acc, option) => {
       acc[option.event_id] ||= [];
@@ -63,6 +81,12 @@ module.exports = async function handler(req, res) {
       acc[result.event_id] = {
         winningOptionId: result.winning_option_id,
         winningLabel: result.winning_label,
+        homeScore: result.home_score,
+        awayScore: result.away_score,
+        winnerOptionId: result.winning_option_id,
+        decidedBy: result.decided_by,
+        homePenalties: result.home_penalties,
+        awayPenalties: result.away_penalties,
         decidedAt: result.decided_at
       };
       return acc;
@@ -81,7 +105,9 @@ module.exports = async function handler(req, res) {
         locked: event.locked,
         closesAt: event.closes_at,
         options: optionsByEvent[event.id] || [],
-        result: resultsByEvent[event.id] || null
+        result: resultsByEvent[event.id] || null,
+        participantSources: sourcesByTarget[event.id] || null,
+        advancesTo: advancesBySource[event.id] || null
       })),
       submissions: submissions.map((submission) => ({
         id: submission.id,
@@ -106,11 +132,16 @@ module.exports = async function handler(req, res) {
 async function ensureDefaultData() {
   if (defaultsChecked || process.env.AUTO_SEED_DEFAULTS === "false") return;
 
-  const existingEvents = await supabase("events?select=id,type");
+  const [existingEvents, existingOptions, existingDependencies] = await Promise.all([
+    supabase("events?select=id,type"),
+    supabase("event_options?select=event_id,option_id"),
+    supabase("knockout_dependencies?select=source_event_id,outcome,target_event_id,target_slot")
+  ]);
   const hasEnoughMatches = existingEvents.filter((event) => event.type === "match_winner").length >= 72;
+  const hasKnockoutMatches = existingEvents.filter((event) => event.type === "knockout_match_winner").length >= 32;
   const hasChampion = existingEvents.some((event) => event.id === "champion");
   const hasPenalty = existingEvents.some((event) => event.id === "__champion-change-penalty");
-  if (hasEnoughMatches && hasChampion && hasPenalty) {
+  if (hasEnoughMatches && hasKnockoutMatches && existingDependencies.length >= 32 && hasChampion && hasPenalty) {
     defaultsChecked = true;
     return;
   }
@@ -118,7 +149,11 @@ async function ensureDefaultData() {
   const defaultTeams = getDefaultTeams();
   const defaultEvents = getDefaultEvents();
   const defaultOptions = getDefaultOptions();
-  const defaultMatchIds = getDefaultMatchIds();
+  const defaultDependencies = getKnockoutDependencies();
+  const existingEventIds = new Set(existingEvents.map((event) => event.id));
+  const existingOptionKeys = new Set(existingOptions.map((option) => `${option.event_id}:${option.option_id}`));
+  const missingEvents = defaultEvents.filter((event) => !existingEventIds.has(event.id));
+  const missingOptions = defaultOptions.filter((option) => !existingOptionKeys.has(`${option.event_id}:${option.option_id}`));
 
   await supabase("teams", {
     method: "POST",
@@ -126,20 +161,18 @@ async function ensureDefaultData() {
     body: JSON.stringify(defaultTeams)
   });
 
-  await supabase("events", {
+  if (missingEvents.length) {
+    await supabase("events", { method: "POST", body: JSON.stringify(missingEvents) });
+  }
+
+  if (missingOptions.length) {
+    await supabase("event_options", { method: "POST", body: JSON.stringify(missingOptions) });
+  }
+
+  await supabase("knockout_dependencies", {
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify(defaultEvents)
-  });
-
-  await supabase(`event_options?event_id=in.(${defaultMatchIds.join(",")})`, {
-    method: "DELETE"
-  });
-
-  await supabase("event_options", {
-    method: "POST",
-    headers: { Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify(defaultOptions)
+    body: JSON.stringify(defaultDependencies)
   });
 
   defaultsChecked = true;

@@ -130,11 +130,24 @@ function byImportance(a, b) {
 }
 
 function byPredictionOrder(a, b) {
-  const aIsMatch = a.type === "match_winner";
-  const bIsMatch = b.type === "match_winner";
+  const aIsMatch = isMatchEvent(a);
+  const bIsMatch = isMatchEvent(b);
   if (aIsMatch && bIsMatch) return bySchedule(a, b);
   if (aIsMatch !== bIsMatch) return aIsMatch ? 1 : -1;
   return byImportance(a, b);
+}
+
+function isMatchEvent(event) {
+  return ["match_winner", "knockout_match_winner"].includes(event?.type);
+}
+
+function isKnockoutEvent(event) {
+  return event?.type === "knockout_match_winner";
+}
+
+function hasResolvedParticipants(event) {
+  return !isKnockoutEvent(event) || (event.options || []).length === 2
+    && event.options.every((option) => !/^(winner|loser)-match-\d{3}$/.test(option.optionId));
 }
 
 function isInternalEvent(event) {
@@ -225,7 +238,7 @@ function renderEvents() {
     node.querySelector(".description").textContent = `${event.description || ""} ${formatDeadline(event)}`.trim();
 
     const options = node.querySelector(".options");
-    if (event.type === "match_winner") {
+    if (isMatchEvent(event)) {
       renderRadioOptions(options, event);
     } else {
       renderDropdownOption(options, event);
@@ -259,7 +272,7 @@ function renderRadioOptions(container, event) {
       input.type = "radio";
       input.name = event.id;
       input.value = option.optionId;
-      input.disabled = closed || hasSavedPick;
+      input.disabled = closed || hasSavedPick || !hasResolvedParticipants(event);
       input.checked = state.picks[event.id] === option.optionId;
       input.addEventListener("change", () => {
         state.picks[event.id] = option.optionId;
@@ -269,6 +282,12 @@ function renderRadioOptions(container, event) {
       applyFlagStyle(span, option);
       label.append(input, span);
       container.append(label);
+    }
+    if (!hasResolvedParticipants(event)) {
+      const note = document.createElement("p");
+      note.className = "small-message unresolved-note";
+      note.textContent = "Predictions open when both participants are known.";
+      container.append(note);
     }
 }
 
@@ -361,25 +380,80 @@ function renderSchedule() {
     return;
   }
 
-  for (const match of matches) {
-    const teams = getMatchTeams(match);
-    const row = document.createElement("article");
-    row.className = "schedule-row";
-    row.classList.toggle("played", Boolean(match.result));
-    row.innerHTML = `
-      <div>
-        <p class="stage">${escapeHtml(match.stage || "Match")}</p>
-        <h3>${escapeHtml(match.title)}</h3>
-        <p class="description">${escapeHtml(match.description || "")}</p>
-      </div>
-      <div class="schedule-status">
-        <span class="points">${match.points} pts</span>
-        <span class="${match.result ? "played-status" : match.locked ? "locked" : "open"}">${match.result ? "Played" : match.locked ? "Locked" : "Open"}</span>
-        <span class="schedule-result">${match.result ? `Result: ${escapeHtml(match.result.winningLabel)}` : teams.join(" / ")}</span>
-      </div>
-    `;
-    els.scheduleList.append(row);
+  const knockoutMatches = matches.filter(isKnockoutEvent);
+  if (knockoutMatches.length) {
+    const bracket = document.createElement("div");
+    bracket.className = "knockout-bracket";
+    const stages = ["Round of 32", "Round of 16", "Quarterfinals", "Semifinals", "Third-place playoff", "Final"];
+    for (const stage of stages) {
+      const column = document.createElement("section");
+      column.className = "bracket-round";
+      column.innerHTML = `<h3>${escapeHtml(stage)}</h3>`;
+      for (const match of knockoutMatches.filter((item) => item.stage === stage)) {
+        column.append(createBracketMatch(match));
+      }
+      bracket.append(column);
+    }
+    els.scheduleList.append(bracket);
   }
+
+  const groupMatches = matches.filter((match) => match.type === "match_winner");
+  if (groupMatches.length) {
+    const history = document.createElement("details");
+    history.className = "group-stage-history";
+    history.innerHTML = `<summary>Group Stage history <span>${groupMatches.length} matches</span></summary>`;
+    const list = document.createElement("div");
+    list.className = "schedule-list group-schedule-list";
+    for (const match of groupMatches) list.append(createScheduleRow(match));
+    history.append(list);
+    els.scheduleList.append(history);
+  }
+}
+
+function createBracketMatch(match) {
+  const card = document.createElement("article");
+  card.className = "bracket-match";
+  card.classList.toggle("played", Boolean(match.result));
+  const teams = getMatchTeams(match);
+  card.innerHTML = `
+    <span class="bracket-id">${escapeHtml(match.id)}</span>
+    <strong>${escapeHtml(teams[0] || "TBD")}</strong>
+    <strong>${escapeHtml(teams[1] || "TBD")}</strong>
+    <span class="bracket-result">${match.result ? escapeHtml(formatMatchResult(match)) : escapeHtml(formatDeadline(match) || "Participants pending")}</span>
+  `;
+  return card;
+}
+
+function createScheduleRow(match) {
+  const teams = getMatchTeams(match);
+  const row = document.createElement("article");
+  row.className = "schedule-row";
+  row.classList.toggle("played", Boolean(match.result));
+  row.innerHTML = `
+    <div>
+      <p class="stage">${escapeHtml(match.stage || "Match")}</p>
+      <h3>${escapeHtml(match.title)}</h3>
+      <p class="description">${escapeHtml(match.description || "")}</p>
+    </div>
+    <div class="schedule-status">
+      <span class="points">${match.points} pts</span>
+      <span class="${match.result ? "played-status" : isClosed(match) ? "locked" : "open"}">${match.result ? "Played" : isClosed(match) ? "Locked" : "Open"}</span>
+      <span class="schedule-result">${match.result ? `Result: ${escapeHtml(formatMatchResult(match))}` : escapeHtml(teams.join(" / "))}</span>
+    </div>
+  `;
+  return row;
+}
+
+function formatMatchResult(match) {
+  const result = match.result;
+  if (!result) return "";
+  if (Number.isInteger(result.homeScore) && Number.isInteger(result.awayScore)) {
+    const teams = getMatchTeams(match);
+    const penalties = result.decidedBy === "penalties" ? ` (${result.homePenalties}-${result.awayPenalties} pens)` : "";
+    const extraTime = result.decidedBy === "extra_time" ? " (AET)" : "";
+    return `${teams[0] || "Home"} ${result.homeScore}-${result.awayScore} ${teams[1] || "Away"}${penalties}${extraTime}`;
+  }
+  return result.winningLabel;
 }
 
 function renderHistory() {
@@ -397,7 +471,7 @@ function renderHistory() {
       .filter((row) => row.event && !isInternalEvent(row.event))
     : [];
   const playedRows = state.data.events
-    .filter((event) => event.type === "match_winner" && event.result)
+    .filter((event) => isMatchEvent(event) && event.result)
     .map((event) => ({ event, prediction: state.savedPicks[event.id] || null }));
 
   if (!savedRows.length && !playedRows.length) {
@@ -435,7 +509,7 @@ function renderHistory() {
 function createHistoryRow(event, prediction) {
   const row = document.createElement("div");
   row.className = "history-row";
-  const resultText = event.result ? `Result: ${event.result.winningLabel}` : "Awaiting result";
+  const resultText = event.result ? `Result: ${isMatchEvent(event) ? formatMatchResult(event) : event.result.winningLabel}` : "Awaiting result";
   const points = prediction ? `${prediction.pointsAwarded || 0} pts` : "";
   row.innerHTML = `
     <div>
@@ -515,7 +589,7 @@ function renderStandings() {
 
 function getMatchEvents() {
   return [...state.data.events]
-    .filter((event) => event.type === "match_winner")
+    .filter(isMatchEvent)
     .sort(bySchedule);
 }
 
@@ -549,7 +623,7 @@ function getGroupFromMatch(match) {
 
 function calculateStandings() {
   const groups = {};
-  for (const match of getMatchEvents()) {
+  for (const match of getMatchEvents().filter((event) => event.type === "match_winner")) {
     const group = getGroupFromMatch(match);
     groups[group] ||= {};
     for (const team of getMatchTeams(match)) {
@@ -711,7 +785,8 @@ els.predictionForm.addEventListener("submit", async (event) => {
 
   hydratePicksForName(displayName);
 
-  if (!state.picks.champion && !state.savedPicks.champion) {
+  const championEvent = state.data.events.find((item) => item.id === "champion");
+  if (championEvent && !isClosed(championEvent) && !state.picks.champion && !state.savedPicks.champion) {
     alert("Please make the World Cup winner pick before submitting.");
     return;
   }
@@ -843,11 +918,28 @@ document.querySelector("#saveResult").addEventListener("click", () => {
 });
 
 document.querySelector("#saveScore").addEventListener("click", () => {
-  adminAction("setScore", {
+  const selectedEvent = state.data.events.find((event) => event.id === els.adminEvent.value);
+  const teamOptions = (selectedEvent?.options || []).filter((option) => option.optionId !== "draw");
+  const homeScore = Number(document.querySelector("#scoreHome").value);
+  const awayScore = Number(document.querySelector("#scoreAway").value);
+  const decidedBy = document.querySelector("#scoreDecidedBy").value;
+  const homePenalties = Number(document.querySelector("#scoreHomePenalties").value);
+  const awayPenalties = Number(document.querySelector("#scoreAwayPenalties").value);
+  const winnerOptionId = decidedBy === "penalties"
+    ? (homePenalties > awayPenalties ? teamOptions[0]?.optionId : teamOptions[1]?.optionId)
+    : homeScore === awayScore ? "draw" : homeScore > awayScore ? teamOptions[0]?.optionId : teamOptions[1]?.optionId;
+  const scorePayload = {
     eventId: els.adminEvent.value,
-    homeScore: Number(document.querySelector("#scoreHome").value),
-    awayScore: Number(document.querySelector("#scoreAway").value)
-  });
+    homeScore,
+    awayScore,
+    winnerOptionId,
+    decidedBy
+  };
+  if (scorePayload.decidedBy === "penalties") {
+    scorePayload.homePenalties = homePenalties;
+    scorePayload.awayPenalties = awayPenalties;
+  }
+  adminAction("setScore", scorePayload);
 });
 
 document.querySelector("#saveBatchScores").addEventListener("click", () => {

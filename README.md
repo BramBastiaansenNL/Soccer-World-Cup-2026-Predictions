@@ -81,3 +81,15 @@ Admin can:
 - Correct knockout match winner: 15 points.
 - Correct group-stage match winner: 8 points.
 - Correct group-stage draw: 12 points.
+
+## Knockout-stage upgrade
+
+Before deploying this version over an existing Supabase project, run
+`supabase/knockout_upgrade.sql` in the Supabase SQL editor. The next request to
+`/api/state` seeds matches `match-073` through `match-104`, two-option picks,
+deadlines, and bracket dependencies without changing group-stage data.
+
+Knockout score updates use `setScore` or `batchSetScores` and support
+`winnerOptionId`, `decidedBy`, and penalty shootout scores. Saving a result
+scores that event, resolves future participants, and recalculates the existing
+semifinalist, finalist, and champion picks when their rounds are complete.

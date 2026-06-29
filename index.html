@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>World Cup Fame Picks</title>
-    <link rel="stylesheet" href="/styles.css?v=20260612-returning-picks">
+    <link rel="stylesheet" href="/styles.css?v=20260629-knockout-bracket">
   </head>
   <body>
     <main class="app-shell">
@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">Company World Cup challenge</p>
           <h1>World Cup Fame Picks</h1>
-          <p class="hero-copy">Pick the big tournament outcomes now, then come back throughout the World Cup to choose winners for newly scheduled matches.</p>
+          <p class="hero-copy">The knockout stage is here. Pick the team that advances in every match—there are no draws from here to the final.</p>
         </div>
         <div class="hero-panel">
           <span class="stat-label">Top prize</span>
@@ -98,8 +98,15 @@
                 <button id="toggleLock" type="button">Toggle lock</button>
                 <input id="scoreHome" type="number" min="0" placeholder="Home goals">
                 <input id="scoreAway" type="number" min="0" placeholder="Away goals">
+                <select id="scoreDecidedBy">
+                  <option value="regular_time">Regular time</option>
+                  <option value="extra_time">Extra time</option>
+                  <option value="penalties">Penalties</option>
+                </select>
+                <input id="scoreHomePenalties" type="number" min="0" placeholder="Home penalties (shootout)">
+                <input id="scoreAwayPenalties" type="number" min="0" placeholder="Away penalties (shootout)">
                 <button id="saveScore" type="button">Save score</button>
-                <textarea id="batchScores" rows="6" placeholder='Batch scores JSON, e.g. [{"eventId":"match-001","homeScore":2,"awayScore":0}]'></textarea>
+                <textarea id="batchScores" rows="6" placeholder='Batch scores JSON, e.g. [{"eventId":"match-073","homeScore":0,"awayScore":1,"winnerOptionId":"canada","decidedBy":"regular_time"}]'></textarea>
                 <button id="saveBatchScores" type="button">Apply batch scores</button>
                 <input id="deleteName" placeholder="Name to delete">
                 <button id="deleteSubmission" type="button">Delete submission</button>
@@ -111,6 +118,7 @@
                 <input id="fixtureOptions" placeholder="Options separated by |, e.g. France|Draw|Brazil">
                 <select id="fixtureType">
                   <option value="match_winner">Match winner</option>
+                  <option value="knockout_match_winner">Knockout match winner</option>
                   <option value="champion">Champion</option>
                   <option value="finalist">Finalist</option>
                   <option value="semi_finalist">Semi-finalist</option>
@@ -128,7 +136,7 @@
         <div class="panel-header">
           <div>
             <p class="eyebrow">Fixtures</p>
-            <h2>Scheduled matches</h2>
+            <h2>Knockout bracket and match history</h2>
           </div>
         </div>
         <div id="scheduleList" class="schedule-list"></div>
@@ -169,6 +177,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=20260612-chrono-picks"></script>
+    <script src="/app.js?v=20260629-knockout-bracket"></script>
   </body>
 </html>

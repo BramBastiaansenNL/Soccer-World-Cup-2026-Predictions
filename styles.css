@@ -535,6 +535,92 @@ details summary {
   gap: 12px;
 }
 
+.knockout-bracket {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(190px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 16px;
+}
+
+.bracket-round {
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.bracket-round > h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 0 4px;
+  padding: 9px 10px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  text-align: center;
+}
+
+.bracket-match {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 7px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(20, 33, 61, 0.07);
+}
+
+.bracket-match.played {
+  border-left-color: var(--gold);
+  background: #f7f8fb;
+}
+
+.bracket-id,
+.bracket-result {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.bracket-result {
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+}
+
+.group-stage-history {
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f7f8fb;
+}
+
+.group-stage-history > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.group-stage-history > summary span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.group-schedule-list {
+  margin-top: 14px;
+}
+
+.unresolved-note {
+  flex-basis: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fff8e8;
+}
+
 .schedule-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
@@ -664,5 +750,9 @@ details summary {
   .standing-row {
     grid-template-columns: minmax(110px, 1fr) repeat(6, 34px);
     font-size: 0.88rem;
+  }
+
+  .knockout-bracket {
+    grid-template-columns: repeat(6, 220px);
   }
 }
